@@ -17,13 +17,12 @@
  */
 package org.apache.cassandra.cql3.statements;
 
-import java.util.*;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
-import com.google.common.collect.Iterables;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.config.CFMetaData;
@@ -43,6 +42,12 @@ import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.thrift.ThriftValidation;
 import org.apache.cassandra.transport.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 
 /** A <code>CREATE INDEX</code> statement parsed from a CQL query. */
 public class CreateIndexStatement extends SchemaAlteringStatement
@@ -112,9 +117,13 @@ public class CreateIndexStatement extends SchemaAlteringStatement
             // would pull the full partition every time the static column of partition is 'bar', which sounds like offering a
             // fair potential for foot-shooting, so I prefer leaving that to a follow up ticket once we have identified cases where
             // such indexing is actually useful.
-            if (!cfm.isCompactTable() && cd.isStatic())
-                throw new InvalidRequestException("Secondary indexes are not allowed on static columns");
-
+            if (!cfm.isCompactTable() && cd.isStatic() && 
+                !(properties.isCustom && 
+                        ( (properties.getMap("options") != null && properties.getMap("options").containsKey("enforce") && properties.getMap("options").get("enforce").equals("true")))
+                 )
+               )
+                throw new InvalidRequestException("Secondary indexes are not allowed on static columns unless 'enforce' option is set to true");
+            
             if (cd.kind == ColumnDefinition.Kind.PARTITION_KEY && cfm.getKeyValidatorAsClusteringComparator().size() == 1)
                 throw new InvalidRequestException(String.format("Cannot create secondary index on partition key column %s", target.column));
 
