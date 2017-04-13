@@ -85,6 +85,14 @@ public final class FunctionName
     }
 
     /**
+     * @return Unique lowercase function name.
+     */
+    public String name()
+    {
+        return (keyspace == null || keyspace.equals("system") ? name : keyspace + "." + name).toLowerCase();
+    }
+
+    /**
      * Returns a string representation of the function name that is safe to use directly in CQL queries.
      * If necessary, the name components will be double-quoted, and any quotes inside the names will be escaped.
      */
