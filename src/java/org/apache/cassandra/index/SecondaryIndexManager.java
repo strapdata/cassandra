@@ -246,7 +246,11 @@ public class SecondaryIndexManager implements IndexRegistry
     * @param sstables the data to build from
     * @param indexNames the list of indexes to be rebuilt
     */
-    public void rebuildIndexesBlocking(Collection<SSTableReader> sstables, Set<String> indexNames)
+    public void rebuildIndexesBlocking(Collection<SSTableReader> sstables, Set<String> indexNames) {
+        rebuildIndexesBlocking(1, sstables, indexNames);
+    }
+    
+    public void rebuildIndexesBlocking(int indexThreads, Collection<SSTableReader> sstables, Set<String> indexNames)
     {
         Set<Index> toRebuild = indexes.values().stream()
                                                .filter(index -> indexNames.contains(index.getIndexMetadata().name))
@@ -260,7 +264,7 @@ public class SecondaryIndexManager implements IndexRegistry
 
         toRebuild.forEach(indexer -> markIndexRemoved(indexer.getIndexMetadata().name));
 
-        buildIndexesBlocking(sstables, toRebuild);
+        buildIndexesBlocking(indexThreads, sstables, toRebuild);
 
         toRebuild.forEach(indexer -> markIndexBuilt(indexer.getIndexMetadata().name));
     }
@@ -360,6 +364,11 @@ public class SecondaryIndexManager implements IndexRegistry
 
     private void buildIndexesBlocking(Collection<SSTableReader> sstables, Set<Index> indexes)
     {
+        buildIndexesBlocking(1, sstables, indexes);
+    }
+    
+    private void buildIndexesBlocking(int indexThreads, Collection<SSTableReader> sstables, Set<Index> indexes)
+    {
         if (indexes.isEmpty())
             return;
 
@@ -376,7 +385,7 @@ public class SecondaryIndexManager implements IndexRegistry
 
         List<Future<?>> futures = byType.entrySet()
                                         .stream()
-                                        .map((e) -> e.getKey().getIndexBuildTask(baseCfs, e.getValue(), sstables))
+                                        .map((e) -> e.getKey().getIndexBuildTask(indexThreads, baseCfs, e.getValue(), sstables))
                                         .map(CompactionManager.instance::submitIndexBuild)
                                         .collect(Collectors.toList());
 
