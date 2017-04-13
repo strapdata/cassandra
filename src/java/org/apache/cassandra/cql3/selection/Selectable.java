@@ -303,6 +303,17 @@ public interface Selectable extends AssignmentTestable
         public Selector.Factory newSelectorFactory(TableMetadata table, AbstractType<?> expectedType, List<ColumnMetadata> defs, VariableSpecifications boundNames)
         {
             SelectorFactories factories = SelectorFactories.createFactoriesAndCollectColumnDefinitions(args, function.argTypes(), table, defs, boundNames);
+
+            //lookup first for generic function taking arbitrary types
+            Function fun = GenericFunctionRegistry.getInstance(function.name(), factories.getReturnTypes());
+            if (fun == null)
+                fun = FunctionResolver.get(table.keyspace, function.name(), args, table.keyspace, table.name, null);
+            
+            if (fun == null)
+                throw new InvalidRequestException(String.format("Unknown function '%s'", function.name()));
+            if (fun.returnType() == null)
+                throw new InvalidRequestException(String.format("Unknown function %s called in selection clause", function.name()));
+
             return AbstractFunctionSelector.newFactory(function, factories);
         }
 
@@ -349,21 +360,26 @@ public interface Selectable extends AssignmentTestable
             public Selectable prepare(TableMetadata table)
             {
                 List<Selectable> preparedArgs = new ArrayList<>(args.size());
-                for (Selectable.Raw arg : args)
-                    preparedArgs.add(arg.prepare(table));
+                List<AbstractType<?>> preparedTypes = new ArrayList<>(args.size());
+                for (Selectable.Raw arg : args) {
+                    Selectable selectArg = arg.prepare(table);
+                    preparedArgs.add(selectArg);
+                    preparedTypes.add(selectArg.getExactTypeIfKnown(table.keyspace));
+                }
 
                 FunctionName name = functionName;
-                // We need to circumvent the normal function lookup process for toJson() because instances of the function
-                // are not pre-declared (because it can accept any type of argument). We also have to wait until we have the
-                // selector factories of the argument so we can access their final type.
-                if (functionName.equalsNativeFunction(ToJsonFct.NAME))
+                
+                // lookup first for generic function taking arbitrary types
+                Function fun = GenericFunctionRegistry.getInstance(name, preparedTypes);
+                if (fun != null)
                 {
-                    return new WithToJSonFunction(preparedArgs);
+                    return new WithFunction(fun, preparedArgs);
                 }
+                
                 // Also, COUNT(x) is equivalent to COUNT(*) for any non-null term x (since count(x) don't care about it's argument outside of check for nullness) and
                 // for backward compatibilty we want to support COUNT(1), but we actually have COUNT(x) method for every existing (simple) input types so currently COUNT(1)
                 // will throw as ambiguous (since 1 works for any type). So we have have to special case COUNT.
-                else if (functionName.equalsNativeFunction(FunctionName.nativeFunction("count"))
+                if (functionName.equalsNativeFunction(FunctionName.nativeFunction("count"))
                         && preparedArgs.size() == 1
                         && (preparedArgs.get(0) instanceof WithTerm)
                         && (((WithTerm)preparedArgs.get(0)).rawTerm instanceof Constants.Literal))
@@ -373,8 +389,7 @@ public interface Selectable extends AssignmentTestable
                     preparedArgs = Collections.emptyList();
                 }
 
-                Function fun = FunctionResolver.get(table.keyspace, name, preparedArgs, table.keyspace, table.name, null);
-
+                fun = FunctionResolver.get(table.keyspace, name, preparedArgs, table.keyspace, table.name, null);
                 if (fun == null)
                     throw new InvalidRequestException(String.format("Unknown function '%s'", functionName));
 

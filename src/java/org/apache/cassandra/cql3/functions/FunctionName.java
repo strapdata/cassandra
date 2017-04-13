@@ -79,4 +79,13 @@ public final class FunctionName
     {
         return keyspace == null ? name : keyspace + "." + name;
     }
+    
+    
+    /**
+     * @return Unique lowercase function name.
+     */
+    public String name() 
+    {
+        return (keyspace == null || keyspace.equals("system") ? name : keyspace + "." + name).toLowerCase();
+    }
 }
