@@ -791,10 +791,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public void rebuildSecondaryIndex(String idxName)
     {
-        rebuildSecondaryIndex(keyspace.getName(), metadata.cfName, idxName);
+        rebuildSecondaryIndex(1, idxName);
     }
 
-    public static void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames)
+    public void rebuildSecondaryIndex(int indexThreads, String idxName)
+    {
+        rebuildSecondaryIndex(indexThreads, keyspace.getName(), metadata.cfName, idxName);
+    }
+    
+    public static void rebuildSecondaryIndex(int indexThreads, String ksName, String cfName, String... idxNames)
     {
         ColumnFamilyStore cfs = Keyspace.open(ksName).getColumnFamilyStore(cfName);
 
@@ -803,8 +808,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         Iterable<SSTableReader> sstables = cfs.getSSTables(SSTableSet.CANONICAL);
         try (Refs<SSTableReader> refs = Refs.ref(sstables))
         {
-            logger.info("User Requested secondary index re-build for {}/{} indexes: {}", ksName, cfName, Joiner.on(',').join(idxNames));
-            cfs.indexManager.rebuildIndexesBlocking(refs, indexes);
+            logger.info("User Requested secondary index re-build for {}/{} with {} threads, indexes: {}", ksName, cfName, indexThreads, Joiner.on(',').join(idxNames));
+            cfs.indexManager.rebuildIndexesBlocking(indexThreads, refs, indexes);
         }
     }
 

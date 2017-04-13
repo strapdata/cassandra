@@ -5067,14 +5067,19 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return sampledKeys;
     }
 
-    public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames)
+    public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames) 
+    {
+        rebuildSecondaryIndex(1, ksName, cfName, idxNames);
+    }
+    
+    public void rebuildSecondaryIndex(int indexThreads, String ksName, String cfName, String... idxNames)
     {
         String[] indices = asList(idxNames).stream()
                                            .map(p -> isIndexColumnFamily(p) ? getIndexName(p) : p)
                                            .collect(toList())
                                            .toArray(new String[idxNames.length]);
 
-        ColumnFamilyStore.rebuildSecondaryIndex(ksName, cfName, indices);
+        ColumnFamilyStore.rebuildSecondaryIndex(indexThreads, ksName, cfName, indices);
     }
 
     public void resetLocalSchema() throws IOException

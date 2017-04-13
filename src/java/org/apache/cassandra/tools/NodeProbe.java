@@ -1078,9 +1078,9 @@ public class NodeProbe implements AutoCloseable
         ssProxy.loadNewSSTables(ksName, cfName);
     }
 
-    public void rebuildIndex(String ksName, String cfName, String... idxNames)
+    public void rebuildIndex(int indexThread, String ksName, String cfName, String... idxNames)
     {
-        ssProxy.rebuildSecondaryIndex(ksName, cfName, idxNames);
+        ssProxy.rebuildSecondaryIndex(indexThread, ksName, cfName, idxNames);
     }
 
     public String getGossipInfo()
