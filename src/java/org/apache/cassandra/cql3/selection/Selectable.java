@@ -142,12 +142,9 @@ public abstract class Selectable
             SelectorFactories factories  =
                     SelectorFactories.createFactoriesAndCollectColumnDefinitions(args, cfm, defs);
 
-            // We need to circumvent the normal function lookup process for toJson() because instances of the function
-            // are not pre-declared (because it can accept any type of argument).
-            Function fun;
-            if (functionName.equalsNativeFunction(ToJsonFct.NAME))
-                fun = ToJsonFct.getInstance(factories.getReturnTypes());
-            else
+            // lookup first for generic function taking arbitrary types
+            Function fun = GenericFunctionRegistry.getInstance(functionName, factories.getReturnTypes());
+            if (fun == null)
                 fun = FunctionResolver.get(cfm.ksName, functionName, factories.newInstances(), cfm.ksName, cfm.cfName, null);
 
             if (fun == null)

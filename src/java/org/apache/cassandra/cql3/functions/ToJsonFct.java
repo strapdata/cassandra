@@ -23,13 +23,10 @@ import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
 import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ToJsonFct extends NativeScalarFunction
+public class ToJsonFct extends NativeScalarFunction implements IGenericFunction
 {
     public static final FunctionName NAME = FunctionName.nativeFunction("tojson");
 
