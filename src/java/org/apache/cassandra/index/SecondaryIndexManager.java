@@ -324,6 +324,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     }
 
     /**
+<<<<<<< HEAD
      * Does a blocking full rebuild of the specifed indexes from all the sstables in the base table.
      * Note also that this method of (re)building indexes:
      * a) takes a set of index *names* rather than Indexers
@@ -433,6 +434,11 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     @SuppressWarnings({ "unchecked" })
     private void buildIndexesBlocking(Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
     {
+        buildIndexesBlocking(1, sstables, indexes, isFullRebuild);
+    }
+    
+    private void buildIndexesBlocking(int indexThreads, Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
+    {
         if (indexes.isEmpty())
             return;
 
@@ -465,8 +471,8 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
             List<Future<?>> futures = new ArrayList<>(byType.size());
             byType.forEach((buildingSupport, groupedIndexes) ->
                            {
-                               SecondaryIndexBuilder builder = buildingSupport.getIndexBuildTask(baseCfs, groupedIndexes, sstables);
-                               final SettableFuture build = SettableFuture.create();
+                               SecondaryIndexBuilder builder = buildingSupport.getIndexBuildTask(indexThreads, baseCfs, groupedIndexes, sstables);
+                               final SettableFuture build = SettableFuture.create();    
                                Futures.addCallback(CompactionManager.instance.submitIndexBuild(builder), new FutureCallback()
                                {
                                    @Override

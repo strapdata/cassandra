@@ -683,7 +683,7 @@ public class SecondaryIndexManagerTest extends CQLTester
                             buildWaitLatch.countDown();
                             buildLatch.await();
                         }
-                        final SecondaryIndexBuilder builder = super.getIndexBuildTask(cfs, indexes, sstables);
+                        final SecondaryIndexBuilder builder = super.getIndexBuildTask(1, cfs, indexes, sstables);
                         return new SecondaryIndexBuilder()
                         {
 
