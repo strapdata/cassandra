@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ToJsonFct extends NativeScalarFunction
+public class ToJsonFct extends NativeScalarFunction implements IGenericFunction
 {
     public static final FunctionName NAME = FunctionName.nativeFunction("tojson");
 
