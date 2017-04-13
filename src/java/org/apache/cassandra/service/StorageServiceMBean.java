@@ -620,6 +620,7 @@ public interface StorageServiceMBean extends NotificationEmitter
      * rebuild the specified indexes
      */
     public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames);
+    public void rebuildSecondaryIndex(int indexThreads, String ksName, String cfName, String... idxNames);
 
     public void resetLocalSchema() throws IOException;
 

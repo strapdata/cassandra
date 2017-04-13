@@ -61,7 +61,7 @@ public class SASIIndex implements Index, INotificationConsumer
 {
     private static class SASIIndexBuildingSupport implements IndexBuildingSupport
     {
-        public SecondaryIndexBuilder getIndexBuildTask(ColumnFamilyStore cfs,
+        public SecondaryIndexBuilder getIndexBuildTask(int indexThreads, ColumnFamilyStore cfs,
                                                        Set<Index> indexes,
                                                        Collection<SSTableReader> sstablesToRebuild)
         {
