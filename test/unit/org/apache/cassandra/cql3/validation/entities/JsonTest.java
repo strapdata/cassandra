@@ -578,11 +578,11 @@ public class JsonTest extends CQLTester
                 "durationval duration)");
 
         // toJson() can only be used in selections
-        assertInvalidMessage("toJson() may only be used within the selection clause",
+        assertInvalidMessage("generic function tojson() may only be used within the selection clause",
                 "INSERT INTO %s (k, asciival) VALUES (?, toJson(?))", 0, 0);
-        assertInvalidMessage("toJson() may only be used within the selection clause",
+        assertInvalidMessage("generic function tojson() may only be used within the selection clause",
                 "UPDATE %s SET asciival = toJson(?) WHERE k = ?", 0, 0);
-        assertInvalidMessage("toJson() may only be used within the selection clause",
+        assertInvalidMessage("generic function tojson() may only be used within the selection clause",
                 "DELETE FROM %s WHERE k = fromJson(toJson(?))", 0);
 
         // ================ ascii ================
