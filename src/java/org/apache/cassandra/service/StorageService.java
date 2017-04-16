@@ -958,6 +958,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             setMode(Mode.JOINING, "waiting for ring information", true);
             waitForSchema(delay);
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
+
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
             PendingRangeCalculatorService.instance.blockUntilFinished();
             setMode(Mode.JOINING, "calculation complete, ready to bootstrap", true);
@@ -1051,6 +1052,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 else
                     logger.info("Using saved tokens {}", bootstrapTokens);
             }
+
+            if (this.daemon != null)
+                this.daemon.ringReady();
         }
 
         setUpDistributedSystemKeyspaces();
@@ -1538,7 +1542,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         // Force disk boundary invalidation now that local tokens are set
         invalidateDiskBoundaries();
 
+        if (this.daemon != null)
+            this.daemon.beforeBootstrap();
+
         setMode(Mode.JOINING, "Starting to bootstrap...", true);
+
         BootStrapper bootstrapper = new BootStrapper(FBUtilities.getBroadcastAddress(), tokens, tokenMetadata);
         bootstrapper.addProgressListener(progressSupport);
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, useStrictConsistency && !replacing); // handles token update
@@ -1923,6 +1931,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         for (Map.Entry<InetAddress, UUID> entry : getTokenMetadata().getEndpointToHostIdMapForReading().entrySet())
             mapOut.put(entry.getKey().getHostAddress(), entry.getValue().toString());
         return mapOut;
+    }
+
+    public UUID getHostId(InetAddress endpoint)
+    {
+        return getTokenMetadata().getHostId(endpoint);
     }
 
     public Map<String, String> getHostIdToEndpoint()
@@ -5200,11 +5213,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return sampledKeys;
     }
 
-    public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames) 
+    public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames)
     {
         rebuildSecondaryIndex(1, ksName, cfName, idxNames);
     }
-    
+
     public void rebuildSecondaryIndex(int indexThreads, String ksName, String cfName, String... idxNames)
     {
         String[] indices = asList(idxNames).stream()

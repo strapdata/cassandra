@@ -427,10 +427,15 @@ public class MigrationManager
 
     public static void announceColumnFamilyUpdate(CFMetaData cfm, boolean announceLocally) throws ConfigurationException
     {
-        announceColumnFamilyUpdate(cfm, null, announceLocally);
+        announceColumnFamilyUpdate(cfm, null, announceLocally, FBUtilities.timestampMicros());
     }
 
     public static void announceColumnFamilyUpdate(CFMetaData cfm, Collection<ViewDefinition> views, boolean announceLocally) throws ConfigurationException
+    {
+        announceColumnFamilyUpdate(cfm, views, announceLocally, FBUtilities.timestampMicros());
+    }
+
+    public static void announceColumnFamilyUpdate(CFMetaData cfm, Collection<ViewDefinition> views, boolean announceLocally, long timestamp) throws ConfigurationException
     {
         cfm.validate();
 
@@ -440,8 +445,6 @@ public class MigrationManager
         KeyspaceMetadata ksm = Schema.instance.getKSMetaData(cfm.ksName);
 
         oldCfm.validateCompatibility(cfm);
-
-        long timestamp = FBUtilities.timestampMicros();
 
         logger.info("Update table '{}/{}' From {} To {}", cfm.ksName, cfm.cfName, oldCfm, cfm);
         Mutation.SimpleBuilder builder = SchemaKeyspace.makeUpdateTableMutation(ksm, oldCfm, cfm, timestamp);
