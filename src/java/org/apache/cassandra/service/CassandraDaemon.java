@@ -261,6 +261,8 @@ public class CassandraDaemon
         // load schema from disk
         Schema.instance.loadFromDisk();
 
+        systemKeyspaceInitialized();
+        
         // clean up debris in the rest of the keyspaces
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
@@ -299,6 +301,8 @@ public class CassandraDaemon
         }
 
 
+        userKeyspaceInitialized();
+        
         try
         {
             loadRowAndKeyCacheAsync().get();
@@ -679,6 +683,85 @@ public class CassandraDaemon
         }
     }
 
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void systemKeyspaceInitialized() 
+    {
+    }
+
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void userKeyspaceInitialized() 
+    {
+    }
+    
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void beforeBootstrap() 
+    {
+    }
+    
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize after
+     */
+    public void ringReady() 
+    {
+    }
+    
+    /*
+    private void waitForGossipToSettle()
+    {
+        int forceAfter = Integer.getInteger("cassandra.skip_wait_for_gossip_to_settle", -1);
+        if (forceAfter == 0)
+        {
+            return;
+        }
+        final int GOSSIP_SETTLE_MIN_WAIT_MS = 5000;
+        final int GOSSIP_SETTLE_POLL_INTERVAL_MS = 1000;
+        final int GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED = 3;
+
+        logger.info("Waiting for gossip to settle before accepting client requests...");
+        Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_MIN_WAIT_MS, TimeUnit.MILLISECONDS);
+        int totalPolls = 0;
+        int numOkay = 0;
+        int epSize = Gossiper.instance.getEndpointStates().size();
+        while (numOkay < GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED)
+        {
+            Uninterruptibles.sleepUninterruptibly(GOSSIP_SETTLE_POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            int currentSize = Gossiper.instance.getEndpointStates().size();
+            totalPolls++;
+            if (currentSize == epSize)
+            {
+                logger.debug("Gossip looks settled.");
+                numOkay++;
+            }
+            else
+            {
+                logger.info("Gossip not settled after {} polls.", totalPolls);
+                numOkay = 0;
+            }
+            epSize = currentSize;
+            if (forceAfter > 0 && totalPolls > forceAfter)
+            {
+                logger.warn("Gossip not settled but startup forced by cassandra.skip_wait_for_gossip_to_settle. Gossip total polls: {}",
+                            totalPolls);
+                break;
+            }
+        }
+        if (totalPolls > GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED)
+            logger.info("Gossip settled after {} extra polls; proceeding", totalPolls - GOSSIP_SETTLE_POLL_SUCCESSES_REQUIRED);
+        else
+            logger.info("No gossip backlog; proceeding");
+    }
+    */
+    
     public static void stop(String[] args)
     {
         instance.deactivate();
