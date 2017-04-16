@@ -1823,6 +1823,9 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                     writeSnapshotSchema(snapshotName);
             }
         }
+        
+        this.indexManager.snapshotWithoutFlush(snapshotName);
+        
         if (ephemeral)
             createEphemeralSnapshotMarkerFile(snapshotName);
         return snapshottedSSTables;
