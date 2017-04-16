@@ -261,6 +261,8 @@ public class CassandraDaemon
         // load schema from disk
         Schema.instance.loadFromDisk();
 
+        systemKeyspaceInitialized();
+
         // clean up debris in the rest of the keyspaces
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
@@ -297,6 +299,8 @@ public class CassandraDaemon
                 }
             }
         }
+
+        userKeyspaceInitialized();
 
         try
         {
@@ -720,6 +724,38 @@ public class CassandraDaemon
         {
             System.exit(0);
         }
+    }
+
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void systemKeyspaceInitialized()
+    {
+    }
+
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void userKeyspaceInitialized()
+    {
+    }
+
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void beforeBootstrap()
+    {
+    }
+
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize after
+     */
+    public void ringReady()
+    {
     }
 
     public static void stop(String[] args)

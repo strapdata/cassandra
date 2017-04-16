@@ -441,7 +441,7 @@ public class MigrationManager
 
     public static void announceColumnFamilyUpdate(CFMetaData cfm, boolean announceLocally) throws ConfigurationException
     {
-        announceColumnFamilyUpdate(cfm, null, announceLocally);
+        announceColumnFamilyUpdate(cfm, null, announceLocally, FBUtilities.timestampMicros());
     }
 
     public static void announceColumnFamilyUpdate(CFMetaData cfm, Collection<ViewDefinition> views, boolean announceLocally) throws ConfigurationException
