@@ -317,6 +317,11 @@ public abstract class UntypedResultSet implements Iterable<UntypedResultSet.Row>
         {
             return LongType.instance.compose(data.get(column));
         }
+        
+        public float getFloat(String column)
+        {
+            return FloatType.instance.compose(data.get(column));
+        }
 
         public <T> Set<T> getSet(String column, AbstractType<T> type)
         {
