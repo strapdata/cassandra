@@ -831,7 +831,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     {
         rebuildSecondaryIndex(indexThreads, keyspace.getName(), metadata.cfName, idxName);
     }
-    
+
     public static void rebuildSecondaryIndex(int indexThreads, String ksName, String cfName, String... idxNames)
     {
         ColumnFamilyStore cfs = Keyspace.open(ksName).getColumnFamilyStore(cfName);
@@ -1824,6 +1824,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         if (!SchemaConstants.isLocalSystemKeyspace(metadata.ksName) && !SchemaConstants.isReplicatedSystemKeyspace(metadata.ksName))
             writeSnapshotSchema(snapshotName);
 
+        this.indexManager.snapshotWithoutFlush(snapshotName);
+        
         if (ephemeral)
             createEphemeralSnapshotMarkerFile(snapshotName);
         return snapshottedSSTables;
