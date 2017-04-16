@@ -988,6 +988,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 setMode(Mode.JOINING, "Replacing a node with token(s): " + bootstrapTokens, true);
             }
 
+            if (this.daemon != null)
+                this.daemon.beforeBootstrap();
+            
             dataAvailable = bootstrap(bootstrapTokens);
         }
         else
@@ -1004,6 +1007,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 else
                     logger.info("Using saved tokens {}", bootstrapTokens);
             }
+            
+            if (this.daemon != null)
+                this.daemon.ringReady();
         }
 
         // if we don't have system_traces keyspace at this point, then create it manually
@@ -1977,6 +1983,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return mapOut;
     }
 
+    public UUID getHostId(InetAddressAndPort endpoint)
+    {
+        return getTokenMetadata().getHostId(endpoint);
+    }
+    
     public Map<String, String> getHostIdToEndpoint()
     {
         return getHostIdToEndpoint(false);

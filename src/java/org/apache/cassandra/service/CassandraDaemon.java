@@ -255,6 +255,8 @@ public class CassandraDaemon
         VirtualKeyspaceRegistry.instance.register(VirtualSchemaKeyspace.instance);
         VirtualKeyspaceRegistry.instance.register(SystemViewsKeyspace.instance);
 
+        systemKeyspaceInitialized();
+        
         // clean up debris in the rest of the keyspaces
         for (String keyspaceName : Schema.instance.getKeyspaces())
         {
@@ -292,6 +294,7 @@ public class CassandraDaemon
             }
         }
 
+        userKeyspaceInitialized();
 
         try
         {
@@ -669,6 +672,38 @@ public class CassandraDaemon
         }
     }
 
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void systemKeyspaceInitialized() 
+    {
+    }
+
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void userKeyspaceInitialized() 
+    {
+    }
+    
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize
+     */
+    public void beforeBootstrap() 
+    {
+    }
+    
+    /**
+     * This is a hook for concrete daemons to initialize themselves suitably.
+     * Subclasses should override this to initialize after
+     */
+    public void ringReady() 
+    {
+    }
+    
     public static void stop(String[] args)
     {
         instance.deactivate();

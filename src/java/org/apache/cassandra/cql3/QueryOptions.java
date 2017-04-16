@@ -54,6 +54,11 @@ public abstract class QueryOptions
     // A cache of bind values parsed as JSON, see getJsonColumnValue for details.
     private List<Map<ColumnIdentifier, Term>> jsonValuesCache;
 
+    public static QueryOptions forInternalCalls(ConsistencyLevel consistency, ConsistencyLevel serialConsistency, List<ByteBuffer> values, String keyspace)
+    {
+        return new DefaultQueryOptions(consistency, values, false, new SpecificOptions(-1, null, serialConsistency, Long.MIN_VALUE, keyspace), ProtocolVersion.V3);
+    }
+    
     public static QueryOptions forInternalCalls(ConsistencyLevel consistency, List<ByteBuffer> values)
     {
         return new DefaultQueryOptions(consistency, values, false, SpecificOptions.DEFAULT, ProtocolVersion.V3);
