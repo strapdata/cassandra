@@ -106,6 +106,9 @@ public class SecondaryIndexManager implements IndexRegistry
 
     private Map<String, Index> indexes = Maps.newConcurrentMap();
 
+    // indexes.values() as a set
+    private Set<Index> indexesSet = Sets.newConcurrentHashSet();
+    
     /**
      * The indexes that are ready to server requests.
      */
@@ -177,7 +180,7 @@ public class SecondaryIndexManager implements IndexRegistry
             markIndexBuilt(indexDef.name);
             return Futures.immediateFuture(null);
         }
-        return asyncExecutor.submit(index.getInitializationTask());
+        return asyncExecutor.submit(initialBuildTask);
     }
 
     /**
@@ -495,7 +498,7 @@ public class SecondaryIndexManager implements IndexRegistry
      */
     public void flushAllNonCFSBackedIndexesBlocking()
     {
-        executeAllBlocking(indexes.values()
+        executeAllBlocking(indexesSet
                                   .stream()
                                   .filter(index -> !index.getBackingTable().isPresent()),
                            Index::getBlockingFlushTask);
@@ -772,7 +775,7 @@ public class SecondaryIndexManager implements IndexRegistry
      */
     public void validate(PartitionUpdate update) throws InvalidRequestException
     {
-        for (Index index : indexes.values())
+        for (Index index : indexesSet)
             index.validate(update);
     }
 
@@ -783,7 +786,8 @@ public class SecondaryIndexManager implements IndexRegistry
     {
         String name = index.getIndexMetadata().name;
         indexes.put(name, index);
-        logger.trace("Registered index {}", name);
+        indexesSet.add(index);
+        logger.trace("Registered index {}={}", name, index);
     }
 
     public void unregisterIndex(Index index)
@@ -795,8 +799,9 @@ public class SecondaryIndexManager implements IndexRegistry
     {
         Index removed = indexes.remove(name);
         builtIndexes.remove(name);
-        logger.trace(removed == null ? "Index {} was not registered" : "Removed index {} from registry",
-                     name);
+        indexesSet.remove(removed);
+        logger.trace(removed == null ? "Index {} was not registered" : "Removed index {}={} from registry",
+                     name, removed);
         return removed;
     }
 
@@ -824,7 +829,7 @@ public class SecondaryIndexManager implements IndexRegistry
         if (!hasIndexes())
             return UpdateTransaction.NO_OP;
 
-        Index.Indexer[] indexers = indexes.values().stream()
+        Index.Indexer[] indexers = indexesSet.stream()
                                           .map(i -> i.indexerFor(update.partitionKey(),
                                                                  update.columns(),
                                                                  nowInSec,
