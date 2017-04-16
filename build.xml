@@ -720,6 +720,37 @@
         <echo message="${base.version}" />
     </target>
 
+    <condition property="javassist-maven.jar.exists">
+          <available file="${build.dir}/javassist-maven-plugin-2.4.jar" />
+    </condition>
+    <target name="javassit-maven-download" depends="init" unless="javassist-maven.jar.exists"
+                description="Fetch Maven Javassit from Maven Central Repositroy">
+          <echo>Downloading Javassist Maven Plugin...</echo>
+          <get src="https://oss.sonatype.org/content/repositories/releases/com/strapdata/javassist-maven-plugin/2.4/javassist-maven-plugin-2.4.jar"
+               dest="${build.dir}/javassist-maven-plugin-2.4.jar" usetimestamp="true" />
+          <get src="https://oss.sonatype.org/content/repositories/releases/com/strapdata/javassist-maven-plugin-core/2.4/javassist-maven-plugin-core-2.4.jar"
+               dest="${build.dir}/javassist-maven-plugin-core-2.4.jar" usetimestamp="true" />
+    </target>
+    
+    <path id="javassist.classpath">
+          <pathelement location="${build.dir}/javassist-maven-plugin-2.4.jar" />
+          <pathelement location="${build.dir}/javassist-maven-plugin-core-2.4.jar" />
+    </path>
+    
+     <target name="transform" description="Fix String default Locale with a javassit transformer" depends="build, javassit-maven-download">
+             <taskdef name="transform" 
+                      classname="com.strapdata.ant.JavassitTransformerTask"
+                      classpathref="javassist.classpath" >
+                    <classpath>
+                        <pathelement location="${build.lib}/guava-19.0.jar"/>
+                        <pathelement location="${build.lib}/javassist-3.20.0-GA.jar"/>
+                    </classpath>
+             </taskdef>
+             <transform transformer="com.strapdata.transformer.StringLocaleTransformer" directory="${build.classes.main}">
+                   <fileset dir="${build.classes.main}" includes="**/*.class"/>
+             </transform>
+     </target>
+     
     <!--
        Generate thrift code.  We have targets to build java because
        Cassandra depends on it, and python because that is what the system
@@ -889,7 +920,7 @@
         The jar target makes cassandra.jar output.
     -->
     <target name="jar"
-            depends="build, build-test, stress-build, write-poms"
+            depends="build, transform, build-test, stress-build, write-poms"
             description="Assemble Cassandra JAR files">
       <mkdir dir="${build.classes.main}/META-INF" />
       <mkdir dir="${build.classes.thrift}/META-INF" />
