@@ -237,6 +237,16 @@ public interface Index
     public Callable<?> getBlockingFlushTask();
 
     /**
+     * Return a task which performs a blocking snapshot of the index's data to persistent storage.
+     * @param snapshotName
+     * @return task to be executed by the index manager to perform the flush.
+     */
+    default public Callable<?> getSnapshotWithoutFlushTask(String snapshotName)
+    {
+        return null;
+    }
+    
+    /**
      * Return a task which invalidates the index, indicating it should no longer be considered usable.
      * This should include an clean up and releasing of resources required when dropping an index.
      * @return task to be executed by the index manager to invalidate the index.
