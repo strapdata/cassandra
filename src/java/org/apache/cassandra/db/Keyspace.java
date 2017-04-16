@@ -112,6 +112,11 @@ public class Keyspace
 
     private static volatile boolean initialized = false;
 
+    public static boolean isInitialized() 
+    {
+        return initialized;
+    }
+    
     public static void setInitialized()
     {
         initialized = true;

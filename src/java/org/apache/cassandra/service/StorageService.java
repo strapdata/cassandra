@@ -711,6 +711,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 states.add(Pair.create(ApplicationState.STATUS, valueFactory.hibernate(true)));
                 Gossiper.instance.addLocalApplicationStates(states);
             }
+
+            // sync schema even if we don't join the ring
+            waitForSchema(delay);
+            setMode(Mode.NORMAL, true);
+
             doAuthSetup(true);
             logger.info("Not joining ring as requested. Use JMX (StorageService->joinRing()) to initiate ring joining");
         }
@@ -928,6 +933,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (shouldBootstrap)
         {
             current.addAll(prepareForBootstrap(schemaTimeoutMillis));
+
+            if (this.daemon != null)
+                this.daemon.beforeBootstrap();
+
             dataAvailable = bootstrap(bootstrapTokens, bootstrapTimeoutMillis);
         }
         else
@@ -944,6 +953,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 else
                     logger.info("Using saved tokens {}", bootstrapTokens);
             }
+
+            if (this.daemon != null)
+                this.daemon.ringReady();
         }
 
         setUpDistributedSystemKeyspaces();
@@ -2058,6 +2070,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         for (Map.Entry<InetAddressAndPort, UUID> entry : getTokenMetadata().getEndpointToHostIdMapForReading().entrySet())
             mapOut.put(entry.getKey().getHostAddress(withPort), entry.getValue().toString());
         return mapOut;
+    }
+
+    public UUID getHostId(InetAddressAndPort endpoint)
+    {
+        return getTokenMetadata().getHostId(endpoint);
     }
 
     public Map<String, String> getHostIdToEndpoint()
@@ -5334,11 +5351,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return result;
     }
 
-    public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames) 
+    public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames)
     {
         rebuildSecondaryIndex(1, ksName, cfName, idxNames);
     }
-    
+
     public void rebuildSecondaryIndex(int indexThreads, String ksName, String cfName, String... idxNames)
     {
         String[] indices = asList(idxNames).stream()
