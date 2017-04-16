@@ -389,11 +389,10 @@
           <dependency groupId="org.xerial.snappy" artifactId="snappy-java" version="1.1.1.7"/>
           <dependency groupId="net.jpountz.lz4" artifactId="lz4" version="1.3.0"/>
           <dependency groupId="com.ning" artifactId="compress-lzf" version="0.8.4"/>
-          <dependency groupId="com.google.guava" artifactId="guava" version="18.0"/>
-          <dependency groupId="org.hdrhistogram" artifactId="HdrHistogram" version="2.1.9"/>
-          <dependency groupId="commons-cli" artifactId="commons-cli" version="1.1"/>
-          <dependency groupId="commons-codec" artifactId="commons-codec" version="1.9"/>
-          <dependency groupId="org.apache.commons" artifactId="commons-lang3" version="3.1"/>
+          <dependency groupId="com.google.guava" artifactId="guava" version="19.0"/>
+          <dependency groupId="commons-cli" artifactId="commons-cli" version="1.3.1"/>
+          <dependency groupId="commons-codec" artifactId="commons-codec" version="1.2"/>
+          <dependency groupId="org.apache.commons" artifactId="commons-lang3" version="3.3.1"/>
           <dependency groupId="org.apache.commons" artifactId="commons-math3" version="3.2"/>
           <dependency groupId="com.googlecode.concurrentlinkedhashmap" artifactId="concurrentlinkedhashmap-lru" version="1.4"/>
           <dependency groupId="org.antlr" artifactId="antlr" version="3.5.2">
@@ -405,8 +404,8 @@
           <dependency groupId="org.slf4j" artifactId="slf4j-api" version="1.7.7"/>
           <dependency groupId="org.slf4j" artifactId="log4j-over-slf4j" version="1.7.7"/>
           <dependency groupId="org.slf4j" artifactId="jcl-over-slf4j" version="1.7.7" />
-          <dependency groupId="ch.qos.logback" artifactId="logback-core" version="1.1.3"/>
-          <dependency groupId="ch.qos.logback" artifactId="logback-classic" version="1.1.3"/>
+          <dependency groupId="ch.qos.logback" artifactId="logback-core" version="1.1.8"/>
+          <dependency groupId="ch.qos.logback" artifactId="logback-classic" version="1.1.8"/>
           <dependency groupId="com.fasterxml.jackson.core" artifactId="jackson-core" version="2.9.10"/>
           <dependency groupId="com.fasterxml.jackson.core" artifactId="jackson-databind" version="2.9.10.4"/>
           <dependency groupId="com.fasterxml.jackson.core" artifactId="jackson-annotations" version="2.9.10"/>
@@ -439,7 +438,6 @@
 		    <exclusion groupId="asm" artifactId="asm"/> <!-- this is the outdated version 3.1 -->
           </dependency>
           <dependency groupId="net.java.dev.jna" artifactId="jna" version="4.2.2"/>
-
           <dependency groupId="org.jacoco" artifactId="org.jacoco.agent" version="${jacoco.version}"/>
           <dependency groupId="org.jacoco" artifactId="org.jacoco.ant" version="${jacoco.version}"/>
 
@@ -454,8 +452,8 @@
           <dependency groupId="org.openjdk.jmh" artifactId="jmh-core" version="1.21"/>
           <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess" version="1.21"/>
 
-          <dependency groupId="org.apache.cassandra" artifactId="cassandra-all" version="${version}" />
-          <dependency groupId="org.apache.cassandra" artifactId="cassandra-thrift" version="${version}" />
+          <dependency groupId="com.strapdata.cassandra" artifactId="cassandra-all" version="${version}" />
+          <dependency groupId="com.strapdata.cassandra" artifactId="cassandra-thrift" version="${version}" />
           <dependency groupId="io.dropwizard.metrics" artifactId="metrics-core" version="3.1.5" />
           <dependency groupId="io.dropwizard.metrics" artifactId="metrics-jvm" version="3.1.5" />
           <dependency groupId="com.addthis.metrics" artifactId="reporter-config3" version="3.0.3" />
@@ -480,7 +478,6 @@
           <dependency groupId="joda-time" artifactId="joda-time" version="2.4" />
           <dependency groupId="com.carrotsearch" artifactId="hppc" version="0.5.4" />
           <dependency groupId="de.jflex" artifactId="jflex" version="1.6.0" />
-          <dependency groupId="com.github.rholder" artifactId="snowball-stemmer" version="1.3.0.581.1" />
           <dependency groupId="com.googlecode.concurrent-trees" artifactId="concurrent-trees" version="2.4.0" />
           <dependency groupId="com.github.ben-manes.caffeine" artifactId="caffeine" version="2.2.6" />
           <dependency groupId="org.jctools" artifactId="jctools-core" version="1.2.1"/>
@@ -560,6 +557,7 @@
         <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess"/>
         <dependency groupId="net.ju-n.compile-command-annotations" artifactId="compile-command-annotations"/>
         <dependency groupId="org.apache.ant" artifactId="ant-junit" version="1.9.4" />
+        <dependency groupId="io.airlift" artifactId="airline" version="0.6" />
       </artifact:pom>
       <!-- this build-deps-pom-sources "artifact" is the same as build-deps-pom but only with those
            artifacts that have "-source.jar" files -->
@@ -584,6 +582,7 @@
         <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess"/>
         <dependency groupId="net.ju-n.compile-command-annotations" artifactId="compile-command-annotations"/>
         <dependency groupId="org.apache.ant" artifactId="ant-junit" version="1.9.4" />
+        <dependency groupId="io.airlift" artifactId="airline" />
       </artifact:pom>
 
       <artifact:pom id="coverage-deps-pom"
@@ -593,10 +592,10 @@
                 version="${version}"/>
         <dependency groupId="org.jacoco" artifactId="org.jacoco.agent"/>
         <dependency groupId="org.jacoco" artifactId="org.jacoco.ant" />
-        <dependency groupId="org.jboss.byteman" artifactId="byteman-install"/>
-        <dependency groupId="org.jboss.byteman" artifactId="byteman"/>
-        <dependency groupId="org.jboss.byteman" artifactId="byteman-submit"/>
-        <dependency groupId="org.jboss.byteman" artifactId="byteman-bmunit"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman" version="${byteman.version}"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman-install" version="${byteman.version}"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman-submit" version="${byteman.version}"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman-bmunit" version="${byteman.version}"/>
       </artifact:pom>
 
       <artifact:pom id="test-deps-pom"
@@ -678,12 +677,13 @@
         <dependency groupId="com.github.ben-manes.caffeine" artifactId="caffeine" />
         <dependency groupId="org.jctools" artifactId="jctools-core"/>
         <dependency groupId="org.ow2.asm" artifactId="asm" />
+        <dependency groupId="io.airlift" artifactId="airline" />
       </artifact:pom>
       <artifact:pom id="thrift-pom"
                     artifactId="cassandra-thrift"
                     url="https://cassandra.apache.org"
                     name="Apache Cassandra">
-        <parent groupId="org.apache.cassandra"
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
@@ -694,7 +694,6 @@
         <dependency groupId="org.apache.thrift" artifactId="libthrift"/>
         <dependency groupId="com.carrotsearch" artifactId="hppc" version="0.5.4" />
         <dependency groupId="de.jflex" artifactId="jflex" version="1.6.0" />
-        <dependency groupId="com.github.rholder" artifactId="snowball-stemmer" version="1.3.0.581.1" />
         <dependency groupId="com.googlecode.concurrent-trees" artifactId="concurrent-trees" version="2.4.0" />
 
       </artifact:pom>
@@ -777,14 +776,14 @@
           <get src="https://oss.sonatype.org/content/repositories/releases/com/strapdata/javassist-maven-plugin-core/2.4/javassist-maven-plugin-core-2.4.jar"
                dest="${build.dir}/javassist-maven-plugin-core-2.4.jar" usetimestamp="true" />
     </target>
-    
+
     <path id="javassist.classpath">
           <pathelement location="${build.dir}/javassist-maven-plugin-2.4.jar" />
           <pathelement location="${build.dir}/javassist-maven-plugin-core-2.4.jar" />
     </path>
-    
+
      <target name="transform" description="Fix String default Locale with a javassit transformer" depends="build, javassit-maven-download">
-             <taskdef name="transform" 
+             <taskdef name="transform"
                       classname="com.strapdata.ant.JavassitTransformerTask"
                       classpathref="javassist.classpath" >
                     <classpath>
@@ -796,7 +795,7 @@
                    <fileset dir="${build.classes.main}" includes="**/*.class"/>
              </transform>
      </target>
-     
+
     <!--
        Generate thrift code.  We have targets to build java because
        Cassandra depends on it, and python because that is what the system
