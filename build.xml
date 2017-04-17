@@ -17,7 +17,7 @@
  ~ specific language governing permissions and limitations
  ~ under the License.
  -->
-<project basedir="." default="jar" name="apache-cassandra"
+<project basedir="." default="jar" name="strapdata-cassandra"
          xmlns:artifact="antlib:org.apache.maven.artifact.ant">
     <property environment="env"/>
     <property file="build.properties" />
@@ -26,9 +26,9 @@
 
     <!-- default version and SCM information -->
     <property name="base.version" value="3.10"/>
-    <property name="scm.connection" value="scm:git://git.apache.org/cassandra.git"/>
-    <property name="scm.developerConnection" value="scm:git://git.apache.org/cassandra.git"/>
-    <property name="scm.url" value="http://git-wip-us.apache.org/repos/asf?p=cassandra.git;a=tree"/>
+    <property name="scm.connection" value="scm:git:https://github.com/strapdata/cassandra.git"/>
+    <property name="scm.developerConnection" value="scm:git:git@github.com:strapdata/cassandra.git"/>
+    <property name="scm.url" value="https://github.com/strapdata/cassandra"/>
 
     <!-- directory details -->
     <property name="basedir" value="."/>
@@ -349,14 +349,14 @@
             description="Define dependencies and dependency versions">
       <!-- The parent pom defines the versions of all dependencies -->
       <artifact:pom id="parent-pom"
-                    groupId="org.apache.cassandra"
+                    groupId="com.strapdata.cassandra"
                     artifactId="cassandra-parent"
                     packaging="pom"
                     version="${version}"
-                    url="http://cassandra.apache.org"
-                    name="Apache Cassandra"
+                    url="http://github.com/strapdata/cassandra"
+                    name="Strapdata Cassandra"
                     inceptionYear="2009"
-                    description="The Apache Cassandra Project develops a highly scalable second-generation distributed database, bringing together Dynamo's fully distributed design and Bigtable's ColumnFamily-based data model.">
+                    description="A fork of the Apache Cassandra Project ready to embed Elasticsearch.">
         <license name="The Apache Software License, Version 2.0" url="http://www.apache.org/licenses/LICENSE-2.0.txt"/>
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
         <dependencyManagement>
@@ -421,8 +421,8 @@
           <dependency groupId="org.openjdk.jmh" artifactId="jmh-core" version="1.13"/>
           <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess" version="1.13"/>
 
-          <dependency groupId="org.apache.cassandra" artifactId="cassandra-all" version="${version}" />
-          <dependency groupId="org.apache.cassandra" artifactId="cassandra-thrift" version="${version}" />
+          <dependency groupId="com.strapdata.cassandra" artifactId="cassandra-all" version="${version}" />
+          <dependency groupId="com.strapdata.cassandra" artifactId="cassandra-thrift" version="${version}" />
           <dependency groupId="io.dropwizard.metrics" artifactId="metrics-core" version="3.1.0" />
           <dependency groupId="io.dropwizard.metrics" artifactId="metrics-jvm" version="3.1.0" />
           <dependency groupId="com.addthis.metrics" artifactId="reporter-config3" version="3.0.3" />
@@ -485,7 +485,7 @@
       <!-- each dependency set then defines the subset of the dependencies for that dependency set -->
       <artifact:pom id="build-deps-pom"
                     artifactId="cassandra-build-deps">
-        <parent groupId="org.apache.cassandra"
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <dependency groupId="junit" artifactId="junit"/>
@@ -512,7 +512,7 @@
            artifacts that have "-source.jar" files -->
       <artifact:pom id="build-deps-pom-sources"
                     artifactId="cassandra-build-deps">
-        <parent groupId="org.apache.cassandra"
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <dependency groupId="junit" artifactId="junit"/>
@@ -533,7 +533,7 @@
 
       <artifact:pom id="coverage-deps-pom"
                     artifactId="cassandra-coverage-deps">
-        <parent groupId="org.apache.cassandra"
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <dependency groupId="org.jacoco" artifactId="org.jacoco.agent"/>
@@ -545,7 +545,7 @@
 
       <artifact:pom id="test-deps-pom"
                     artifactId="cassandra-test-deps">
-        <parent groupId="org.apache.cassandra"
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <dependency groupId="joda-time" artifactId="joda-time"/>
@@ -555,9 +555,9 @@
 
       <artifact:pom id="all-pom"
                     artifactId="cassandra-all"
-                    url="http://cassandra.apache.org"
-                    name="Apache Cassandra">
-        <parent groupId="org.apache.cassandra"
+                    url="http://github.com/strapdata/cassandra"
+                    name="Strapdata Cassandra">
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
@@ -591,7 +591,7 @@
         <dependency groupId="ch.qos.logback" artifactId="logback-classic"/>
 
         <dependency groupId="org.apache.thrift" artifactId="libthrift"/>
-        <dependency groupId="org.apache.cassandra" artifactId="cassandra-thrift"/>
+        <dependency groupId="com.strapdata.cassandra" artifactId="cassandra-thrift"/>
 
         <!-- don't need hadoop classes to run, but if you use the hadoop stuff -->
         <dependency groupId="org.apache.hadoop" artifactId="hadoop-core" optional="true"/>
@@ -623,7 +623,7 @@
                     artifactId="cassandra-thrift"
                     url="http://cassandra.apache.org"
                     name="Apache Cassandra">
-        <parent groupId="org.apache.cassandra"
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
@@ -638,12 +638,23 @@
         <dependency groupId="com.googlecode.concurrent-trees" artifactId="concurrent-trees" version="2.4.0" />
 
       </artifact:pom>
+      <artifact:pom id="clientutil-pom"
+                    artifactId="cassandra-clientutil"
+                    url="http://cassandra.apache.org"
+                    name="Apache Cassandra">
+        <parent groupId="com.strapdata.cassandra"
+                artifactId="cassandra-parent"
+                version="${version}"/>
+        <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
+  <dependency groupId="com.google.guava" artifactId="guava"/>
+      </artifact:pom>
+      
       <artifact:pom id="dist-pom"
                     artifactId="apache-cassandra"
                     packaging="pom"
-                    url="http://cassandra.apache.org"
-                    name="Apache Cassandra">
-        <parent groupId="org.apache.cassandra"
+                    url="http://github.com/strapdata/cassandra"
+                    name="Strapdata Cassandra">
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"/>
         <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
