@@ -221,33 +221,37 @@ public class CassandraDaemon
         // This should be the first write to SystemKeyspace (CASSANDRA-11742)
         SystemKeyspace.persistLocalMetadata();
 
-        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler()
+        // Don't overwrite the maven test exception handler
+        if (System.getProperty("tests.maven") == null) 
         {
-            public void uncaughtException(Thread t, Throwable e)
+            Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler()
             {
-                StorageMetrics.exceptions.inc();
-                logger.error("Exception in thread {}", t, e);
-                Tracing.trace("Exception in thread {}", t, e);
-                for (Throwable e2 = e; e2 != null; e2 = e2.getCause())
+                public void uncaughtException(Thread t, Throwable e)
                 {
-                    JVMStabilityInspector.inspectThrowable(e2);
-
-                    if (e2 instanceof FSError)
+                    StorageMetrics.exceptions.inc();
+                    logger.error("Exception in thread {}", t, e);
+                    Tracing.trace("Exception in thread {}", t, e);
+                    for (Throwable e2 = e; e2 != null; e2 = e2.getCause())
                     {
-                        if (e2 != e) // make sure FSError gets logged exactly once.
-                            logger.error("Exception in thread {}", t, e2);
-                        FileUtils.handleFSError((FSError) e2);
-                    }
+                        JVMStabilityInspector.inspectThrowable(e2);
 
-                    if (e2 instanceof CorruptSSTableException)
-                    {
-                        if (e2 != e)
-                            logger.error("Exception in thread " + t, e2);
-                        FileUtils.handleCorruptSSTable((CorruptSSTableException) e2);
+                        if (e2 instanceof FSError)
+                        {
+                            if (e2 != e) // make sure FSError gets logged exactly once.
+                                logger.error("Exception in thread {}", t, e2);
+                            FileUtils.handleFSError((FSError) e2);
+                        }
+
+                        if (e2 instanceof CorruptSSTableException)
+                        {
+                            if (e2 != e)
+                                logger.error("Exception in thread " + t, e2);
+                            FileUtils.handleCorruptSSTable((CorruptSSTableException) e2);
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
         /*
          * Migrate pre-3.0 keyspaces, tables, types, functions, and aggregates, to their new 3.0 storage.
