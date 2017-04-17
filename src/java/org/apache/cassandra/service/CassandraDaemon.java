@@ -236,22 +236,26 @@ public class CassandraDaemon
         // This should be the first write to SystemKeyspace (CASSANDRA-11742)
         SystemKeyspace.persistLocalMetadata();
 
-        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler()
+        // Don't overwrite the maven test exception handler
+        if (System.getProperty("tests.maven") == null)
         {
-            public void uncaughtException(Thread t, Throwable e)
+            Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler()
             {
-                StorageMetrics.exceptions.inc();
-                logger.error("Exception in thread {}", t, e);
-                Tracing.trace("Exception in thread {}", t, e);
-                for (Throwable e2 = e; e2 != null; e2 = e2.getCause())
+                public void uncaughtException(Thread t, Throwable e)
                 {
-                    // make sure error gets logged exactly once.
-                    if (e2 != e && (e2 instanceof FSError || e2 instanceof CorruptSSTableException))
-                        logger.error("Exception in thread {}", t, e2);
+                    StorageMetrics.exceptions.inc();
+                    logger.error("Exception in thread {}", t, e);
+                    Tracing.trace("Exception in thread {}", t, e);
+                    for (Throwable e2 = e; e2 != null; e2 = e2.getCause())
+                    {
+                        // make sure error gets logged exactly once.
+                        if (e2 != e && (e2 instanceof FSError || e2 instanceof CorruptSSTableException))
+                            logger.error("Exception in thread {}", t, e2);
+                    }
+                    JVMStabilityInspector.inspectThrowable(e);
                 }
-                JVMStabilityInspector.inspectThrowable(e);
-            }
-        });
+            });
+        }
 
         /*
          * Migrate pre-3.0 keyspaces, tables, types, functions, and aggregates, to their new 3.0 storage.
@@ -265,7 +269,7 @@ public class CassandraDaemon
 
         // load schema from disk
         Schema.instance.loadFromDisk();
-        
+
         SSTableHeaderFix.fixNonFrozenUDTIfUpgradeFrom30();
         systemKeyspaceInitialized();
 
