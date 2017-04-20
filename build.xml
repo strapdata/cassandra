@@ -481,6 +481,7 @@
         <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess"/>
         <dependency groupId="net.ju-n.compile-command-annotations" artifactId="compile-command-annotations"/>
         <dependency groupId="org.apache.ant" artifactId="ant-junit" version="1.9.4" />
+        <dependency groupId="io.airlift" artifactId="airline" version="0.6" />
       </artifact:pom>
       <!-- this build-deps-pom-sources "artifact" is the same as build-deps-pom but only with those
            artifacts that have "-source.jar" files -->
@@ -497,6 +498,7 @@
         <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess"/>
         <dependency groupId="net.ju-n.compile-command-annotations" artifactId="compile-command-annotations"/>
         <dependency groupId="org.apache.ant" artifactId="ant-junit" version="1.9.4" />
+        <dependency groupId="io.airlift" artifactId="airline" />
       </artifact:pom>
 
       <artifact:pom id="coverage-deps-pom"
@@ -508,6 +510,7 @@
         <dependency groupId="org.jacoco" artifactId="org.jacoco.ant" />
         <dependency groupId="org.jboss.byteman" artifactId="byteman-install"/>
         <dependency groupId="org.jboss.byteman" artifactId="byteman"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman-install"/>
         <dependency groupId="org.jboss.byteman" artifactId="byteman-submit"/>
         <dependency groupId="org.jboss.byteman" artifactId="byteman-bmunit"/>
       </artifact:pom>
@@ -580,6 +583,7 @@
         <dependency groupId="org.fusesource" artifactId="sigar"/>
         <dependency groupId="org.eclipse.jdt.core.compiler" artifactId="ecj"/>
         <dependency groupId="org.caffinitas.ohc" artifactId="ohc-core"/>
+        <dependency groupId="io.airlift" artifactId="airline" />
       </artifact:pom>
       <artifact:pom id="thrift-pom"
                     artifactId="cassandra-thrift"
