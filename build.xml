@@ -447,7 +447,6 @@
           <dependency groupId="joda-time" artifactId="joda-time" version="2.4" />
           <dependency groupId="com.carrotsearch" artifactId="hppc" version="0.5.4" />
           <dependency groupId="de.jflex" artifactId="jflex" version="1.6.0" />
-          <dependency groupId="com.github.rholder" artifactId="snowball-stemmer" version="1.3.0.581.1" />
           <dependency groupId="com.googlecode.concurrent-trees" artifactId="concurrent-trees" version="2.4.0" />
 	  <dependency groupId="com.github.ben-manes.caffeine" artifactId="caffeine" version="2.2.6" />
 	  <dependency groupId="org.jctools" artifactId="jctools-core" version="1.2.1"/>
@@ -507,6 +506,7 @@
         <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess"/>
         <dependency groupId="net.ju-n.compile-command-annotations" artifactId="compile-command-annotations"/>
         <dependency groupId="org.apache.ant" artifactId="ant-junit" version="1.9.4" />
+        <dependency groupId="io.airlift" artifactId="airline" version="0.6" />
       </artifact:pom>
       <!-- this build-deps-pom-sources "artifact" is the same as build-deps-pom but only with those
            artifacts that have "-source.jar" files -->
@@ -529,6 +529,7 @@
         <dependency groupId="org.openjdk.jmh" artifactId="jmh-generator-annprocess"/>
         <dependency groupId="net.ju-n.compile-command-annotations" artifactId="compile-command-annotations"/>
         <dependency groupId="org.apache.ant" artifactId="ant-junit" version="1.9.4" />
+        <dependency groupId="io.airlift" artifactId="airline" />
       </artifact:pom>
 
       <artifact:pom id="coverage-deps-pom"
@@ -538,9 +539,10 @@
                 version="${version}"/>
         <dependency groupId="org.jacoco" artifactId="org.jacoco.agent"/>
         <dependency groupId="org.jacoco" artifactId="org.jacoco.ant" />
-        <dependency groupId="org.jboss.byteman" artifactId="byteman"/>
-        <dependency groupId="org.jboss.byteman" artifactId="byteman-submit"/>
-        <dependency groupId="org.jboss.byteman" artifactId="byteman-bmunit"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman" version="${byteman.version}"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman-install" version="${byteman.version}"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman-submit" version="${byteman.version}"/>
+        <dependency groupId="org.jboss.byteman" artifactId="byteman-bmunit" version="${byteman.version}"/>
       </artifact:pom>
 
       <artifact:pom id="test-deps-pom"
@@ -618,6 +620,7 @@
         <dependency groupId="org.caffinitas.ohc" artifactId="ohc-core"/>
 	<dependency groupId="com.github.ben-manes.caffeine" artifactId="caffeine" />
 	<dependency groupId="org.jctools" artifactId="jctools-core"/>
+        <dependency groupId="io.airlift" artifactId="airline" />
       </artifact:pom>
       <artifact:pom id="thrift-pom"
                     artifactId="cassandra-thrift"
@@ -634,7 +637,6 @@
         <dependency groupId="org.apache.thrift" artifactId="libthrift"/>
         <dependency groupId="com.carrotsearch" artifactId="hppc" version="0.5.4" />
         <dependency groupId="de.jflex" artifactId="jflex" version="1.6.0" />
-        <dependency groupId="com.github.rholder" artifactId="snowball-stemmer" version="1.3.0.581.1" />
         <dependency groupId="com.googlecode.concurrent-trees" artifactId="concurrent-trees" version="2.4.0" />
 
       </artifact:pom>
