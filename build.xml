@@ -1228,7 +1228,7 @@
      debug="true"
      debuglevel="${debuglevel}"
      destdir="${test.classes}"
-     includeantruntime="false"
+     includeantruntime="true"
      source="${source.version}" 
      target="${target.version}"
      encoding="utf-8">
