@@ -462,6 +462,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 ObjectName[] objectNames = {new ObjectName(mbeanName), new ObjectName(oldMBeanName)};
                 for (ObjectName objectName : objectNames)
                 {
+                    if (mbs.isRegistered(objectName))
+                        mbs.unregisterMBean(objectName);
                     mbs.registerMBean(this, objectName);
                 }
             }
