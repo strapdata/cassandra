@@ -25,7 +25,7 @@
     <property name="debuglevel" value="source,lines,vars"/>
 
     <!-- default version and SCM information -->
-    <property name="base.version" value="3.11.0"/>
+    <property name="base.version" value="3.11.0.1"/>
     <property name="scm.connection" value="scm:git:https://github.com/strapdata/cassandra.git"/>
     <property name="scm.developerConnection" value="scm:git:git@github.com:strapdata/cassandra.git"/>
     <property name="scm.url" value="https://github.com/strapdata/cassandra"/>
