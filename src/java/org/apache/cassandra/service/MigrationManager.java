@@ -414,6 +414,11 @@ public class MigrationManager
 
     public static void announceColumnFamilyUpdate(CFMetaData cfm, boolean announceLocally) throws ConfigurationException
     {
+        announceColumnFamilyUpdate(cfm, announceLocally, FBUtilities.timestampMicros());
+    }
+    
+    public static void announceColumnFamilyUpdate(CFMetaData cfm, boolean announceLocally, long timestamp) throws ConfigurationException
+    {
         cfm.validate();
 
         CFMetaData oldCfm = Schema.instance.getCFMetaData(cfm.ksName, cfm.cfName);
@@ -424,7 +429,7 @@ public class MigrationManager
         oldCfm.validateCompatibility(cfm);
 
         logger.info("Update table '{}/{}' From {} To {}", cfm.ksName, cfm.cfName, oldCfm, cfm);
-        announce(SchemaKeyspace.makeUpdateTableMutation(ksm, oldCfm, cfm, FBUtilities.timestampMicros()), announceLocally);
+        announce(SchemaKeyspace.makeUpdateTableMutation(ksm, oldCfm, cfm, timestamp), announceLocally);
     }
 
     public static void announceViewUpdate(ViewDefinition view, boolean announceLocally) throws ConfigurationException
