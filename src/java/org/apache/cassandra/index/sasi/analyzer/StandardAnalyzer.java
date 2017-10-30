@@ -27,17 +27,21 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.cassandra.index.sasi.analyzer.filter.*;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.AsciiType;
 import org.apache.cassandra.db.marshal.UTF8Type;
+import org.apache.cassandra.index.sasi.analyzer.filter.BasicResultFilters;
+import org.apache.cassandra.index.sasi.analyzer.filter.FilterPipelineBuilder;
+import org.apache.cassandra.index.sasi.analyzer.filter.FilterPipelineExecutor;
+import org.apache.cassandra.index.sasi.analyzer.filter.FilterPipelineTask;
+import org.apache.cassandra.index.sasi.analyzer.filter.StemmingFilters;
+import org.apache.cassandra.index.sasi.analyzer.filter.StopWordFilters;
 import org.apache.cassandra.io.util.DataInputBuffer;
 import org.apache.cassandra.utils.ByteBufferUtil;
 
-import com.google.common.annotations.VisibleForTesting;
-
+import com.carrotsearch.hppc.IntObjectHashMap;
 import com.carrotsearch.hppc.IntObjectMap;
-import com.carrotsearch.hppc.IntObjectOpenHashMap;
+import com.google.common.annotations.VisibleForTesting;
 
 public class StandardAnalyzer extends AbstractAnalyzer
 {
@@ -61,7 +65,7 @@ public class StandardAnalyzer extends AbstractAnalyzer
         KATAKANA(12),
         HANGUL(13);
 
-        private static final IntObjectMap<TokenType> TOKENS = new IntObjectOpenHashMap<>();
+        private static final IntObjectMap<TokenType> TOKENS = new IntObjectHashMap<>();
 
         static
         {
