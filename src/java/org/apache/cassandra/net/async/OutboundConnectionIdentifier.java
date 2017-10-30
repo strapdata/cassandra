@@ -19,7 +19,7 @@
 package org.apache.cassandra.net.async;
 
 import com.carrotsearch.hppc.IntObjectMap;
-import com.carrotsearch.hppc.IntObjectOpenHashMap;
+import com.carrotsearch.hppc.IntObjectHashMap;
 import org.apache.cassandra.locator.InetAddressAndPort;
 
 /**
@@ -47,7 +47,7 @@ public class OutboundConnectionIdentifier
             return id;
         }
 
-        private static final IntObjectMap<ConnectionType> idMap = new IntObjectOpenHashMap<>(values().length);
+        private static final IntObjectMap<ConnectionType> idMap = new IntObjectHashMap<>(values().length);
         static
         {
             for (ConnectionType type : values())

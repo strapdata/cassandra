@@ -47,7 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.carrotsearch.hppc.IntObjectMap;
-import com.carrotsearch.hppc.IntObjectOpenHashMap;
+import com.carrotsearch.hppc.IntObjectHashMap;
 import io.netty.channel.Channel;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
@@ -299,7 +299,7 @@ public final class MessagingService implements MessagingServiceMBean
         {
             return id;
         }
-        private static final IntObjectMap<Verb> idToVerbMap = new IntObjectOpenHashMap<>(values().length);
+        private static final IntObjectMap<Verb> idToVerbMap = new IntObjectHashMap<>(values().length);
         static
         {
             for (Verb v : values())
