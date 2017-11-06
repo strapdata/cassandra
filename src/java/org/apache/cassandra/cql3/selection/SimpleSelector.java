@@ -20,6 +20,7 @@ package org.apache.cassandra.cql3.selection;
 import java.nio.ByteBuffer;
 
 import org.apache.cassandra.config.ColumnDefinition;
+import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.cql3.ColumnSpecification;
 import org.apache.cassandra.cql3.QueryOptions;
 import org.apache.cassandra.cql3.selection.Selection.ResultSetBuilder;
@@ -43,6 +44,12 @@ public final class SimpleSelector extends Selector
             protected String getColumnName()
             {
                 return def.name.toString();
+            }
+
+            @Override
+            protected String getColumnNameCQL3() 
+            {
+                return ColumnIdentifier.maybeQuote(def.name.toString());
             }
 
             @Override
@@ -105,6 +112,12 @@ public final class SimpleSelector extends Selector
         return columnName;
     }
 
+    @Override
+    public String toCQLString()
+    {
+        return ColumnIdentifier.maybeQuote(columnName);
+    }
+    
     private SimpleSelector(String columnName, int idx, AbstractType<?> type)
     {
         this.columnName = columnName;
