@@ -22,6 +22,7 @@ import java.util.List;
 import com.google.common.base.Objects;
 
 import org.apache.cassandra.cql3.AssignmentTestable;
+import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.cql3.ColumnSpecification;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.commons.lang3.text.StrBuilder;
@@ -122,6 +123,15 @@ public abstract class AbstractFunction implements Function
     {
         return new StrBuilder(name().toString()).append('(')
                                                 .appendWithSeparators(columnNames, ", ")
+                                                .append(')')
+                                                .toString();
+    }
+
+    @Override
+    public String columnNameCQL3(List<String> columnNames)
+    {
+        return new StrBuilder(name().toString()).append('(')
+                                                .appendWithSeparators(columnNames.stream().map(c->ColumnIdentifier.maybeQuote(c)).toArray(String[]::new), ", ")
                                                 .append(')')
                                                 .toString();
     }
