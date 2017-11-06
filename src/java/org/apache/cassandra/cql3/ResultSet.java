@@ -75,6 +75,11 @@ public class ResultSet
         lastRow().add(value);
     }
 
+    public List<ByteBuffer> firstRow()
+    {
+        return rows.get(0);
+    }
+    
     private List<ByteBuffer> lastRow()
     {
         return rows.get(rows.size() - 1);
