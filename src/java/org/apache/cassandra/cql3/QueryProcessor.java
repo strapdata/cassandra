@@ -181,7 +181,7 @@ public class QueryProcessor implements QueryHandler
         return InternalStateInstance.INSTANCE.queryState;
     }
 
-    private QueryProcessor()
+    public QueryProcessor()
     {
         MigrationManager.instance.register(new MigrationSubscriber());
     }
