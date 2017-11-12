@@ -1085,7 +1085,7 @@ public final class SystemKeyspace
             return result.one().getUUID("host_id");
 
         // ID not found, generate a new one, persist, and then return it.
-        UUID hostId = UUID.randomUUID();
+        UUID hostId = UUID.fromString(System.getProperty("cassandra.host_id", UUID.randomUUID().toString()));
         logger.warn("No host ID found, created {} (Note: This should happen exactly once per node).", hostId);
         return setLocalHostId(hostId);
     }
