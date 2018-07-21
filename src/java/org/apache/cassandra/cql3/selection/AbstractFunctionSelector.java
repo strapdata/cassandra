@@ -59,6 +59,12 @@ abstract class AbstractFunctionSelector<T extends Function> extends Selector
                 return fun.columnName(factories.getColumnNames());
             }
 
+            @Override
+            protected String getColumnNameCQL3()
+            {
+                return fun.columnNameCQL3(factories.getColumnNames());
+            }
+
             protected AbstractType<?> getReturnType()
             {
                 return fun.returnType();
@@ -159,6 +165,17 @@ abstract class AbstractFunctionSelector<T extends Function> extends Selector
         return new StrBuilder().append(fun.name())
                                .append("(")
                                .appendWithSeparators(argSelectors, ", ")
+                               .append(")")
+                               .toString();
+    }
+    
+
+    @Override
+    public String toCQLString()
+    {
+        return new StrBuilder().append(fun.name())
+                               .append("(")
+                               .appendWithSeparators(argSelectors.stream().map(s -> s.toCQLString()).toArray(String[]::new), ", ")
                                .append(")")
                                .toString();
     }
