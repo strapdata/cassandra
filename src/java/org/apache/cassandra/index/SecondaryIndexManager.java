@@ -811,6 +811,19 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
                 (index) -> index.getSnapshotWithoutFlushTask(snapshotName), null);
     }
 
+    // For convenience, may be called directly from Index impls
+    public void buildIndexBlocking(Index index)
+    {
+        if (index.shouldBuildBlocking())
+        {
+            try (ColumnFamilyStore.RefViewFragment viewFragment = baseCfs.selectAndReference(View.selectFunction(SSTableSet.CANONICAL)))
+            {
+                buildIndexesBlocking(viewFragment.sstables, Collections.singleton(index), true);
+                markIndexBuilt(index, true);
+            }
+        }
+    }
+    
     /**
      * @return all indexes which are marked as built and ready to use
      */
