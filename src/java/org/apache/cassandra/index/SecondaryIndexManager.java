@@ -502,7 +502,10 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
                                    @Override
                                    public void onSuccess(Object o)
                                    {
-                                       groupedIndexes.forEach(i -> markIndexBuilt(i, isFullRebuild));
+                                       groupedIndexes.forEach(i -> {
+                                    	       if (markIndexesBuilding)
+                                    		       markIndexBuilt(i, isFullRebuild);
+                                       	   });
                                        logger.info("Index build of {} completed", getIndexNames(groupedIndexes));
                                        builtIndexes.addAll(groupedIndexes);
                                        build.set(o);
