@@ -205,7 +205,20 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     {
         final Index index = createInstance(indexDef);
         index.register(this);
-
+        
+        if (index.delayInitializationTask()) {
+        	return Futures.immediateFuture(null);
+        }
+        return initIndex(index, isNewCF);
+    }
+    
+    public synchronized Future<?> initIndex(final Index index) {
+        return initIndex(index, false);
+    }
+    
+    private synchronized Future<?> initIndex(final Index index, boolean isNewCF) {
+    	IndexMetadata indexDef = index.getIndexMetadata();
+    	
         markIndexesBuilding(ImmutableSet.of(index), true, isNewCF);
 
         Callable<?> initialBuildTask = null;
@@ -251,6 +264,8 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
 
         return initialization;
     }
+    
+    
 
     /**
      * Adds and builds a index

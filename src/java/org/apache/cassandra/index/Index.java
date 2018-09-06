@@ -195,6 +195,11 @@ public interface Index
      */
     public Callable<?> getInitializationTask();
 
+    default public boolean delayInitializationTask() 
+    {
+    	return false;
+    }
+    
     /**
      * Returns the IndexMetadata which configures and defines the index instance. This should be the same
      * object passed as the argument to setIndexMetadata.
