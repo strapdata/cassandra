@@ -449,17 +449,18 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     @SuppressWarnings({ "unchecked" })
     private void buildIndexesBlocking(Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
     {
-        buildIndexesBlocking(1, sstables, indexes, isFullRebuild);
+        buildIndexesBlocking(1, sstables, indexes, isFullRebuild, true);
     }
     
-    private void buildIndexesBlocking(int indexThreads, Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
+    private void buildIndexesBlocking(int indexThreads, Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild, boolean markIndexesBuilding)
     {
         if (indexes.isEmpty())
             return;
 
         // Mark all indexes as building: this step must happen first, because if any index can't be marked, the whole
         // process needs to abort
-        markIndexesBuilding(indexes, isFullRebuild, false);
+        if (markIndexesBuilding)
+        	markIndexesBuilding(indexes, isFullRebuild, false);
 
         // Build indexes in a try/catch, so that any index not marked as either built or failed will be marked as failed:
         final Set<Index> builtIndexes = new HashSet<>();
@@ -829,11 +830,23 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     // For convenience, may be called directly from Index impls
     public void buildIndexBlocking(Index index)
     {
+    	buildIndexBlocking(index, 1, true);
+    }
+    
+    // For convenience, may be called directly from Index impls
+    public void buildIndexBlocking(Index index, boolean markIndexesBuilding) 
+    {
+    	buildIndexBlocking(index, 1, markIndexesBuilding);
+    }
+
+    // For convenience, may be called directly from Index impls
+    public void buildIndexBlocking(Index index, int numThread, boolean markIndexesBuilding)
+    {
         if (index.shouldBuildBlocking())
         {
             try (ColumnFamilyStore.RefViewFragment viewFragment = baseCfs.selectAndReference(View.selectFunction(SSTableSet.CANONICAL)))
             {
-                buildIndexesBlocking(viewFragment.sstables, Collections.singleton(index), true);
+                buildIndexesBlocking(numThread, viewFragment.sstables, Collections.singleton(index), true, markIndexesBuilding);
                 markIndexBuilt(index, true);
             }
         }
