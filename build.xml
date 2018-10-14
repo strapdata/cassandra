@@ -390,7 +390,7 @@
           <dependency groupId="com.ning" artifactId="compress-lzf" version="0.8.4"/>
           <dependency groupId="com.google.guava" artifactId="guava" version="19.0"/>
           <dependency groupId="commons-cli" artifactId="commons-cli" version="1.3.1"/>
-          <dependency groupId="commons-codec" artifactId="commons-codec" version="1.2"/>
+          <dependency groupId="commons-codec" artifactId="commons-codec" version="1.9"/>
           <dependency groupId="org.apache.commons" artifactId="commons-lang3" version="3.3.1"/>
           <dependency groupId="org.apache.commons" artifactId="commons-math3" version="3.2"/>
           <dependency groupId="com.googlecode.concurrentlinkedhashmap" artifactId="concurrentlinkedhashmap-lru" version="1.4"/>
