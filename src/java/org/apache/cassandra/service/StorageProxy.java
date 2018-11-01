@@ -2401,7 +2401,7 @@ public class StorageProxy implements StorageProxyMBean
         for (InetAddress host : allHosts)
         {
             UUID version = versions.get(host);
-            String stringVersion = version == null ? UNREACHABLE : version.toString();
+            String stringVersion = version == null ? ((liveHosts.contains(host)) ? "TIMEOUT" : UNREACHABLE) : version.toString();
             List<String> hosts = results.get(stringVersion);
             if (hosts == null)
             {
