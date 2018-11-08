@@ -37,6 +37,7 @@ import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.index.Index;
 import org.apache.cassandra.index.SecondaryIndexManager;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.serializers.MarshalException;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
@@ -103,10 +104,30 @@ public class ThriftValidation
         return metadata;
     }
 
+    public static CFMetaData validateColumnFamily(KeyspaceMetadata ksm, String cfName) throws org.apache.cassandra.exceptions.InvalidRequestException
+    {
+    	return validateColumnFamilyWithCompactMode(ksm, cfName, false);
+    }
+
     // To be used when the operation should be authorized whether this is a counter CF or not
     public static CFMetaData validateColumnFamily(String keyspaceName, String cfName) throws org.apache.cassandra.exceptions.InvalidRequestException
     {
         return validateColumnFamilyWithCompactMode(keyspaceName, cfName, false);
+    }
+
+    public static CFMetaData validateColumnFamilyWithCompactMode(KeyspaceMetadata ksm, String cfName, boolean noCompactMode) throws org.apache.cassandra.exceptions.InvalidRequestException
+    {
+    	if (cfName.isEmpty())
+            throw new org.apache.cassandra.exceptions.InvalidRequestException("non-empty table is required");
+
+    	CFMetaData metadata = ksm.getTableOrViewNullable(cfName);
+        if (metadata == null)
+            throw new org.apache.cassandra.exceptions.InvalidRequestException("unconfigured table " + metadata);
+
+        if (metadata.isCompactTable() && noCompactMode)
+            return metadata.asNonCompact();
+        else
+            return metadata;
     }
 
     public static CFMetaData validateColumnFamilyWithCompactMode(String keyspaceName, String cfName, boolean noCompactMode) throws org.apache.cassandra.exceptions.InvalidRequestException

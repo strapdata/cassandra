@@ -40,6 +40,7 @@ import org.apache.cassandra.exceptions.RequestValidationException;
 import org.apache.cassandra.exceptions.UnauthorizedException;
 import org.apache.cassandra.schema.IndexMetadata;
 import org.apache.cassandra.schema.Indexes;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.service.QueryState;
@@ -79,7 +80,12 @@ public class CreateIndexStatement extends SchemaAlteringStatement
 
     public void validate(ClientState state) throws RequestValidationException
     {
-        CFMetaData cfm = ThriftValidation.validateColumnFamily(keyspace(), columnFamily());
+    	validate(Schema.instance.getKSMetaData(keyspace()));
+    }
+
+    public void validate(KeyspaceMetadata ksm) throws RequestValidationException
+    {
+        CFMetaData cfm = ThriftValidation.validateColumnFamily(ksm, columnFamily());
 
         if (cfm.isCounter())
             throw new InvalidRequestException("Secondary indexes are not supported on counter tables");
@@ -145,7 +151,7 @@ public class CreateIndexStatement extends SchemaAlteringStatement
 
         if (!Strings.isNullOrEmpty(indexName))
         {
-            if (Schema.instance.getKSMetaData(keyspace()).existingIndexNames(null).contains(indexName))
+            if (ksm.existingIndexNames(null).contains(indexName))
             {
                 if (ifNotExists)
                     return;
@@ -202,7 +208,21 @@ public class CreateIndexStatement extends SchemaAlteringStatement
 
     public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly) throws RequestValidationException
     {
-        CFMetaData cfm = Schema.instance.getCFMetaData(keyspace(), columnFamily()).copy();
+    	KeyspaceMetadata ksm = Schema.instance.getKSMetaData(keyspace());
+    	CFMetaData cfm0 = Schema.instance.getCFMetaData(keyspace(), columnFamily()).copy();
+    	CFMetaData cfm = createIndex(ksm, cfm0);
+    	if (cfm != null) {
+    		MigrationManager.announceColumnFamilyUpdate(cfm, isLocalOnly);
+
+    		// Creating an index is akin to updating the CF
+    		return new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TABLE, keyspace(), columnFamily());
+    	}
+    	return null;
+    }
+
+    public CFMetaData createIndex(KeyspaceMetadata ksm, CFMetaData cfm0) throws RequestValidationException
+    {
+        CFMetaData cfm = cfm0.copy();
         List<IndexTarget> targets = new ArrayList<>(rawTargets.size());
         for (IndexTarget.Raw rawTarget : rawTargets)
             targets.add(rawTarget.prepare(cfm));
@@ -215,7 +235,7 @@ public class CreateIndexStatement extends SchemaAlteringStatement
                                                          targets.size() == 1 ? targets.get(0).column.toString() : null);
         }
 
-        if (Schema.instance.getKSMetaData(keyspace()).existingIndexNames(null).contains(acceptedName))
+        if (ksm.existingIndexNames(null).contains(acceptedName))
         {
             if (ifNotExists)
                 return null;
@@ -251,11 +271,6 @@ public class CreateIndexStatement extends SchemaAlteringStatement
         }
 
         logger.trace("Updating index definition for {}", indexName);
-        cfm.indexes(cfm.getIndexes().with(index));
-
-        MigrationManager.announceColumnFamilyUpdate(cfm, isLocalOnly);
-
-        // Creating an index is akin to updating the CF
-        return new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TABLE, keyspace(), columnFamily());
+        return cfm.indexes(cfm.getIndexes().with(index));
     }
 }
