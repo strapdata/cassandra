@@ -45,13 +45,13 @@ public class DropIndexStatement extends SchemaAlteringStatement
 
     public String columnFamily()
     {
-        CFMetaData cfm = lookupIndexedTable();
+        CFMetaData cfm = lookupIndexedTable(Schema.instance.getKSMetaData(keyspace()));
         return cfm == null ? null : cfm.cfName;
     }
 
     public void checkAccess(ClientState state) throws UnauthorizedException, InvalidRequestException
     {
-        CFMetaData cfm = lookupIndexedTable();
+        CFMetaData cfm = lookupIndexedTable(Schema.instance.getKSMetaData(keyspace()));
         if (cfm == null)
             return;
 
@@ -72,17 +72,23 @@ public class DropIndexStatement extends SchemaAlteringStatement
 
     public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly) throws InvalidRequestException, ConfigurationException
     {
-        CFMetaData cfm = lookupIndexedTable();
+    	CFMetaData cfm = lookupIndexedTable(Schema.instance.getKSMetaData(keyspace()));
         if (cfm == null)
             return null;
 
-        CFMetaData updatedCfm = cfm.copy();
-        updatedCfm.indexes(updatedCfm.getIndexes().without(indexName));
+        CFMetaData updatedCfm = dropIndex(cfm);
         MigrationManager.announceColumnFamilyUpdate(updatedCfm, isLocalOnly);
         // Dropping an index is akin to updating the CF
         // Note that we shouldn't call columnFamily() at this point because the index has been dropped and the call to lookupIndexedTable()
         // in that method would now throw.
-        return new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TABLE, cfm.ksName, cfm.cfName);
+        return new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TABLE, updatedCfm.ksName, cfm.cfName);
+    }
+
+    public CFMetaData dropIndex(CFMetaData cfm)
+    {
+        CFMetaData updatedCfm = cfm.copy();
+        updatedCfm.indexes(updatedCfm.getIndexes().without(indexName));
+        return updatedCfm;
     }
 
     /**
@@ -94,9 +100,8 @@ public class DropIndexStatement extends SchemaAlteringStatement
      * @throws InvalidRequestException if the index cannot be found and "IF EXISTS" is not
      * set on the statement.
      */
-    private CFMetaData lookupIndexedTable()
+    private CFMetaData lookupIndexedTable(KeyspaceMetadata ksm)
     {
-        KeyspaceMetadata ksm = Schema.instance.getKSMetaData(keyspace());
         if (ksm == null)
             throw new KeyspaceNotDefinedException("Keyspace " + keyspace() + " does not exist");
 

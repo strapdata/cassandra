@@ -89,6 +89,11 @@ public class UserType extends TupleType
         return new UserType(keyspace, name, columnNames, columnTypes, true);
     }
 
+    public UserType copy()
+    {
+    	return new UserType(keyspace, name, fieldNames, types, isMultiCell);
+    }
+
     @Override
     public boolean isUDT()
     {

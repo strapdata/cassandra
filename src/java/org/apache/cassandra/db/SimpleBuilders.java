@@ -150,6 +150,11 @@ public abstract class SimpleBuilders
                 mutation.add(builder.build());
             return mutation;
         }
+
+        public boolean isEmpty()
+        {
+        	return updateBuilders.isEmpty();
+        }
     }
 
     public static class PartitionUpdateBuilder extends AbstractBuilder<PartitionUpdate.SimpleBuilder> implements PartitionUpdate.SimpleBuilder

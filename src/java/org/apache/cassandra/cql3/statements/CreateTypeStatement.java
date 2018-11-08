@@ -32,6 +32,7 @@ import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.transport.Event;
+import org.apache.cassandra.utils.FBUtilities;
 
 public class CreateTypeStatement extends SchemaAlteringStatement
 {
@@ -65,9 +66,15 @@ public class CreateTypeStatement extends SchemaAlteringStatement
         state.hasKeyspaceAccess(keyspace(), Permission.CREATE);
     }
 
+    @Override
     public void validate(ClientState state) throws RequestValidationException
     {
         KeyspaceMetadata ksm = Schema.instance.getKSMetaData(name.getKeyspace());
+        validate(state, ksm, FBUtilities.timestampMicros());
+    }
+
+    public void validate(ClientState state, KeyspaceMetadata ksm, long timestamp) throws RequestValidationException
+    {
         if (ksm == null)
             throw new InvalidRequestException(String.format("Cannot add type in unknown keyspace %s", name.getKeyspace()));
 
@@ -114,6 +121,15 @@ public class CreateTypeStatement extends SchemaAlteringStatement
         List<AbstractType<?>> types = new ArrayList<>(columnTypes.size());
         for (CQL3Type.Raw type : columnTypes)
             types.add(type.prepare(keyspace()).getType());
+
+        return new UserType(name.getKeyspace(), name.getUserTypeName(), columnNames, types, true);
+    }
+
+    public UserType createType(KeyspaceMetadata ksm) throws InvalidRequestException
+    {
+        List<AbstractType<?>> types = new ArrayList<>(columnTypes.size());
+        for (CQL3Type.Raw type : columnTypes)
+            types.add(type.prepare(ksm.name, ksm.types).getType());
 
         return new UserType(name.getKeyspace(), name.getUserTypeName(), columnNames, types, true);
     }

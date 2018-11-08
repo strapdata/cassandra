@@ -66,6 +66,11 @@ public final class Functions implements Iterable<Function>
         return functions.values().stream();
     }
 
+    public Functions copy()
+    {
+    	return builder().add(functions.values()).build();
+    }
+
     /**
      * @return a stream of keyspace's UDFs
      */

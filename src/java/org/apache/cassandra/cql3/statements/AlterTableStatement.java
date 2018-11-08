@@ -33,6 +33,7 @@ import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.*;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.BytesType;
 import org.apache.cassandra.db.marshal.EmptyType;
@@ -45,11 +46,13 @@ import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.schema.IndexMetadata;
 import org.apache.cassandra.schema.Indexes;
 import org.apache.cassandra.schema.TableParams;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.transport.Event;
+import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.NoSpamLogger;
 
 import static java.lang.String.format;
@@ -91,14 +94,25 @@ public class AlterTableStatement extends SchemaAlteringStatement
         state.hasColumnFamilyAccess(keyspace(), columnFamily(), Permission.ALTER);
     }
 
+    @Override
     public void validate(ClientState state)
     {
         // validated in announceMigration()
     }
 
-    public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly) throws RequestValidationException
+    @Override
+	public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly) throws RequestValidationException
     {
-        CFMetaData meta = validateColumnFamily(keyspace(), columnFamily());
+    	KeyspaceMetadata ksm = Schema.instance.getKSMetaData(keyspace());
+    	CFMetaData cfm = validateColumnFamily(ksm, columnFamily());
+    	Pair<CFMetaData, List<ViewDefinition>> x = updateTable(ksm, cfm, queryState.getTimestamp());
+    	MigrationManager.announceColumnFamilyUpdate(x.left, x.right, isLocalOnly);
+        return new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TABLE, keyspace(), columnFamily());
+    }
+
+    public Pair<CFMetaData, List<ViewDefinition>> updateTable(KeyspaceMetadata ksm, CFMetaData meta, long timestamp) throws RequestValidationException
+    {
+    	validateColumnFamily(ksm, meta.cfName);
         if (meta.isView())
             throw new InvalidRequestException("Cannot use ALTER TABLE on Materialized View");
 
@@ -110,7 +124,7 @@ public class AlterTableStatement extends SchemaAlteringStatement
         CQL3Type validator = null;
 
         List<ViewDefinition> viewUpdates = null;
-        Iterable<ViewDefinition> views = View.findAll(keyspace(), columnFamily());
+        Iterable<ViewDefinition> views = ksm.views(columnFamily());
 
         switch (oType)
         {
@@ -155,7 +169,7 @@ public class AlterTableStatement extends SchemaAlteringStatement
                     dataType = colData.getColumnType();
                     assert dataType != null;
                     isStatic = colData.getStaticType();
-                    validator = dataType.prepare(keyspace());
+                    validator = dataType.prepare(ksm.name, ksm.types);
 
 
                     if (isStatic)
@@ -256,24 +270,24 @@ public class AlterTableStatement extends SchemaAlteringStatement
 
                     switch (def.kind)
                     {
-                        case PARTITION_KEY:
-                        case CLUSTERING:
-                            throw new InvalidRequestException(String.format("Cannot drop PRIMARY KEY part %s", columnName));
-                        case REGULAR:
-                        case STATIC:
-                            ColumnDefinition toDelete = null;
-                            for (ColumnDefinition columnDef : cfm.partitionColumns())
-                            {
-                                if (columnDef.name.equals(columnName))
-                                {
-                                    toDelete = columnDef;
-                                    break;
-                                }
-                            }
-                            assert toDelete != null;
-                            cfm.removeColumnDefinition(toDelete);
-                            cfm.recordColumnDrop(toDelete, deleteTimestamp == null ? queryState.getTimestamp() : deleteTimestamp);
-                            break;
+                         case PARTITION_KEY:
+                         case CLUSTERING:
+                              throw new InvalidRequestException(String.format("Cannot drop PRIMARY KEY part %s", columnName));
+                         case REGULAR:
+                         case STATIC:
+                              ColumnDefinition toDelete = null;
+                              for (ColumnDefinition columnDef : cfm.partitionColumns())
+                              {
+                                   if (columnDef.name.equals(columnName))
+                                   {
+                                       toDelete = columnDef;
+                                       break;
+                                   }
+                               }
+                             assert toDelete != null;
+                             cfm.removeColumnDefinition(toDelete);
+                             cfm.recordColumnDrop(toDelete, deleteTimestamp == null ? timestamp : deleteTimestamp);
+                             break;
                     }
 
                     // If the dropped column is required by any secondary indexes
@@ -364,8 +378,7 @@ public class AlterTableStatement extends SchemaAlteringStatement
                 throw new InvalidRequestException("Can not alter table: unknown option type " + oType);
         }
 
-        MigrationManager.announceColumnFamilyUpdate(cfm, viewUpdates, isLocalOnly);
-        return new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TABLE, keyspace(), columnFamily());
+        return Pair.create(cfm, viewUpdates);
     }
 
     /**

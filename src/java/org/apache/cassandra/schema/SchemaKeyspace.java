@@ -466,6 +466,13 @@ public final class SchemaKeyspace
         return metadata.decorateKey(((AbstractType)metadata.getKeyValidator()).decompose(value));
     }
 
+    public static Mutation.SimpleBuilder makeCreateKeyspaceMutation(String name, long timestamp)
+    {
+        Mutation.SimpleBuilder builder = Mutation.simpleBuilder(Keyspaces.ksName, decorate(Keyspaces, name))
+                                                 .timestamp(timestamp);
+        return builder;
+    }
+
     public static Mutation.SimpleBuilder makeCreateKeyspaceMutation(String name, KeyspaceParams params, long timestamp)
     {
         Mutation.SimpleBuilder builder = Mutation.simpleBuilder(Keyspaces.ksName, decorate(Keyspaces, name))
@@ -511,7 +518,7 @@ public final class SchemaKeyspace
         return builder;
     }
 
-    static void addTypeToSchemaMutation(UserType type, Mutation.SimpleBuilder mutation)
+    public static void addTypeToSchemaMutation(UserType type, Mutation.SimpleBuilder mutation)
     {
         mutation.update(Types)
                 .row(type.getNameAsString())
@@ -525,6 +532,11 @@ public final class SchemaKeyspace
         Mutation.SimpleBuilder builder = makeCreateKeyspaceMutation(keyspace.name, keyspace.params, timestamp);
         builder.update(Types).row(type.name).delete();
         return builder;
+    }
+
+    public static void dropTypeFromSchemaMutation(UserType type, Mutation.SimpleBuilder builder)
+    {
+    	builder.update(Types).row(type.name).delete();
     }
 
     public static Mutation.SimpleBuilder makeCreateTableMutation(KeyspaceMetadata keyspace, CFMetaData table, long timestamp)
@@ -558,6 +570,16 @@ public final class SchemaKeyspace
             for (IndexMetadata index : table.getIndexes())
                 addIndexToSchemaMutation(table, index, builder);
         }
+    }
+
+    public static void addTableExtensionsToSchemaMutation(CFMetaData table, Map<String, ByteBuffer> extensions, Mutation.SimpleBuilder builder)
+    {
+    	Row.SimpleBuilder rowBuilder = builder.update(Tables)
+                .row(table.cfName)
+                .add("id", table.cfId)
+                .add("flags", CFMetaData.flagsToStrings(table.flags()));
+
+    	rowBuilder.add("extensions", extensions);
     }
 
     private static void addTableParamsToRowBuilder(TableParams params, Row.SimpleBuilder builder)
@@ -692,7 +714,7 @@ public final class SchemaKeyspace
         return builder;
     }
 
-    private static void addColumnToSchemaMutation(CFMetaData table, ColumnDefinition column, Mutation.SimpleBuilder builder)
+    public static void addColumnToSchemaMutation(CFMetaData table, ColumnDefinition column, Mutation.SimpleBuilder builder)
     {
         AbstractType<?> type = column.type;
         if (type instanceof ReversedType)
@@ -833,14 +855,14 @@ public final class SchemaKeyspace
                .add("options", index.options);
     }
 
-    private static void dropIndexFromSchemaMutation(CFMetaData table,
+    public static void dropIndexFromSchemaMutation(CFMetaData table,
                                                     IndexMetadata index,
                                                     Mutation.SimpleBuilder builder)
     {
         builder.update(Indexes).row(table.cfName, index.name).delete();
     }
 
-    private static void addUpdatedIndexToSchemaMutation(CFMetaData table,
+    public static void addUpdatedIndexToSchemaMutation(CFMetaData table,
                                                         IndexMetadata index,
                                                         Mutation.SimpleBuilder builder)
     {

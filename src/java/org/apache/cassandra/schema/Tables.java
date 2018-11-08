@@ -19,6 +19,7 @@ package org.apache.cassandra.schema;
 
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -70,6 +71,11 @@ public final class Tables implements Iterable<CFMetaData>
     public int size()
     {
         return tables.size();
+    }
+
+    public Tables copy()
+    {
+    	return builder().add(tables.values().stream().map(t -> t.copy()).collect(Collectors.toList())).build();
     }
 
     /**

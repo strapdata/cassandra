@@ -23,13 +23,17 @@ import java.util.*;
 import org.apache.cassandra.auth.Permission;
 import org.apache.cassandra.config.*;
 import org.apache.cassandra.cql3.*;
+import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.db.marshal.*;
 import org.apache.cassandra.exceptions.*;
 import org.apache.cassandra.schema.KeyspaceMetadata;
+import org.apache.cassandra.schema.SchemaKeyspace;
+import org.apache.cassandra.schema.Types;
 import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.transport.Event;
+import org.apache.cassandra.utils.FBUtilities;
 
 import static com.google.common.collect.Iterables.any;
 import static com.google.common.collect.Iterables.filter;
@@ -88,7 +92,69 @@ public abstract class AlterTypeStatement extends SchemaAlteringStatement
         return name.getKeyspace();
     }
 
-    public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly) throws InvalidRequestException, ConfigurationException
+    @Override
+	public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly) throws InvalidRequestException, ConfigurationException
+    {
+    	return announceMigration(queryState, isLocalOnly, true);
+    }
+
+    // build schema mutation and schema change events without committing any change.
+    public UserType updateUserType(KeyspaceMetadata ksm, final Collection<Mutation> mutations, Collection<Event.SchemaChange> events) {
+    	if (ksm == null)
+            throw new InvalidRequestException(String.format("Cannot alter type in unknown keyspace %s", name.getKeyspace()));
+
+    	ksm.types.get(name.getUserTypeName())
+	        .orElseThrow(() -> new InvalidRequestException(String.format("No user type named %s exists.", name)));
+
+    	UserType toUpdate =
+                ksm.types.get(name.getUserTypeName())
+                         .orElseThrow(() -> new InvalidRequestException(String.format("No user type named %s exists.", name)));
+
+        UserType updated = makeUpdatedType(toUpdate, ksm);
+        ksm = ksm.withSwapped(ksm.types.with(updated));
+        Mutation.SimpleBuilder builder = SchemaKeyspace.makeCreateKeyspaceMutation(ksm.name, FBUtilities.timestampMicros());
+        SchemaKeyspace.addTypeToSchemaMutation(updated, builder);
+
+        for (CFMetaData cfm : ksm.tables)
+        {
+            CFMetaData copy = cfm.copy();
+            boolean modified = false;
+            for (ColumnDefinition def : copy.allColumns())
+                modified |= updateDefinition(copy, def, toUpdate.keyspace, toUpdate.name, updated);
+            if (modified)
+                MigrationManager.buildColumnFamilyUpdate(copy, null, builder);
+        }
+
+        for (ViewDefinition view : ksm.views)
+        {
+            ViewDefinition copy = view.copy();
+            boolean modified = false;
+            for (ColumnDefinition def : copy.metadata.allColumns())
+                modified |= updateDefinition(copy.metadata, def, toUpdate.keyspace, toUpdate.name, updated);
+            if (modified)
+            	MigrationManager.addViewUpdateToMutationBuilder(copy, builder);
+        }
+
+        // Other user types potentially using the updated type
+        for (UserType ut : ksm.types)
+        {
+            // Re-updating the type we've just updated would be harmless but useless so we avoid it.
+            // Besides, we use the occasion to drop the old version of the type if it's a type rename
+            if (ut.keyspace.equals(toUpdate.keyspace) && ut.name.equals(toUpdate.name))
+            {
+                if ((!ut.keyspace.equals(updated.keyspace) || !ut.name.equals(updated.name)))
+                	SchemaKeyspace.dropTypeFromSchemaMutation(ut, builder);
+                continue;
+            }
+            AbstractType<?> upd = updateWith(ut, toUpdate.keyspace, toUpdate.name, updated);
+            if (upd != null)
+            	SchemaKeyspace.addTypeToSchemaMutation((UserType) upd, builder);
+        }
+        events.add(new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TYPE, keyspace(), name.getStringTypeName()));
+        return updated;
+    }
+
+    public Event.SchemaChange announceMigration(QueryState queryState, boolean isLocalOnly, boolean doAnnounce) throws InvalidRequestException, ConfigurationException
     {
         KeyspaceMetadata ksm = Schema.instance.getKSMetaData(name.getKeyspace());
         if (ksm == null)
@@ -102,7 +168,8 @@ public abstract class AlterTypeStatement extends SchemaAlteringStatement
 
         // Now, we need to announce the type update to basically change it for new tables using this type,
         // but we also need to find all existing user types and CF using it and change them.
-        MigrationManager.announceTypeUpdate(updated, isLocalOnly);
+        if (doAnnounce)
+        	MigrationManager.announceTypeUpdate(updated, isLocalOnly);
 
         for (CFMetaData cfm : ksm.tables)
         {
@@ -110,7 +177,7 @@ public abstract class AlterTypeStatement extends SchemaAlteringStatement
             boolean modified = false;
             for (ColumnDefinition def : copy.allColumns())
                 modified |= updateDefinition(copy, def, toUpdate.keyspace, toUpdate.name, updated);
-            if (modified)
+            if (modified && doAnnounce)
                 MigrationManager.announceColumnFamilyUpdate(copy, isLocalOnly);
         }
 
@@ -120,7 +187,7 @@ public abstract class AlterTypeStatement extends SchemaAlteringStatement
             boolean modified = false;
             for (ColumnDefinition def : copy.metadata.allColumns())
                 modified |= updateDefinition(copy.metadata, def, toUpdate.keyspace, toUpdate.name, updated);
-            if (modified)
+            if (modified && doAnnounce)
                 MigrationManager.announceViewUpdate(copy, isLocalOnly);
         }
 
@@ -131,12 +198,12 @@ public abstract class AlterTypeStatement extends SchemaAlteringStatement
             // Besides, we use the occasion to drop the old version of the type if it's a type rename
             if (ut.keyspace.equals(toUpdate.keyspace) && ut.name.equals(toUpdate.name))
             {
-                if (!ut.keyspace.equals(updated.keyspace) || !ut.name.equals(updated.name))
+                if ((!ut.keyspace.equals(updated.keyspace) || !ut.name.equals(updated.name)) && doAnnounce)
                     MigrationManager.announceTypeDrop(ut);
                 continue;
             }
             AbstractType<?> upd = updateWith(ut, toUpdate.keyspace, toUpdate.name, updated);
-            if (upd != null)
+            if (upd != null && doAnnounce)
                 MigrationManager.announceTypeUpdate((UserType) upd, isLocalOnly);
         }
         return new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TYPE, keyspace(), name.getStringTypeName());

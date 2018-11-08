@@ -17,6 +17,7 @@
  */
 package org.apache.cassandra.cql3.statements;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -24,11 +25,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.exceptions.SyntaxException;
+import org.apache.cassandra.schema.TableParams;
 
 public class PropertyDefinitions
 {
     private static final Pattern PATTERN_POSITIVE = Pattern.compile("(1|true|yes)");
-    
+
     protected static final Logger logger = LoggerFactory.getLogger(PropertyDefinitions.class);
 
     protected final Map<String, Object> properties = new HashMap<String, Object>();
@@ -43,6 +45,17 @@ public class PropertyDefinitions
     {
         if (properties.put(name, value) != null)
             throw new SyntaxException(String.format("Multiple definition for property '%s'", name));
+    }
+
+    public void setExtensions(Map<String, ByteBuffer> extensions) throws SyntaxException
+    {
+        if (properties.put(TableParams.Option.EXTENSIONS.toString(), extensions) != null)
+            throw new SyntaxException("Multiple definition for extensions");
+    }
+
+    public Map<String, ByteBuffer> getExtensions() throws SyntaxException
+    {
+    	return (Map<String, ByteBuffer>) properties.get(TableParams.Option.EXTENSIONS.toString());
     }
 
     public void validate(Set<String> keywords, Set<String> obsolete) throws SyntaxException

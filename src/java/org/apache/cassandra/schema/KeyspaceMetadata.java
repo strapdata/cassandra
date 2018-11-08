@@ -20,6 +20,7 @@ package org.apache.cassandra.schema;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -28,6 +29,7 @@ import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
 
 import org.apache.cassandra.config.CFMetaData;
+import org.apache.cassandra.config.Schema;
 import org.apache.cassandra.config.SchemaConstants;
 import org.apache.cassandra.config.ViewDefinition;
 import org.apache.cassandra.exceptions.ConfigurationException;
@@ -99,6 +101,11 @@ public final class KeyspaceMetadata
         return Iterables.concat(tables, views.metadatas());
     }
 
+    public Iterable<ViewDefinition> views(String baseTable)
+    {
+        return Iterables.filter(views, view -> view.baseTableName.equals(baseTable));
+    }
+
     @Nullable
     public CFMetaData getTableOrViewNullable(String tableOrViewName)
     {
@@ -164,6 +171,18 @@ public final class KeyspaceMetadata
                           .add("types", types)
                           .toString();
     }
+
+    public KeyspaceMetadata copy()
+    {
+    	return create(
+    			this.name,
+    			this.params,
+    			this.tables.copy(),
+    			this.views.copy(),
+    			this.types.copy(),
+    			this.functions.copy());
+    }
+
 
     public void validate()
     {
