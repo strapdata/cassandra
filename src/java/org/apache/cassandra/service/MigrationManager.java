@@ -42,6 +42,8 @@ import org.apache.cassandra.gms.*;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
+import org.apache.cassandra.net.IAsyncCallback;
+import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.schema.KeyspaceMetadata;
@@ -442,7 +444,7 @@ public class MigrationManager
     {
         announceColumnFamilyUpdate(cfm, views, announceLocally, FBUtilities.timestampMicros());
     }
-    
+
     public static void announceColumnFamilyUpdate(CFMetaData cfm, Collection<ViewDefinition> views, boolean announceLocally, long timestamp) throws ConfigurationException
     {
         cfm.validate();
@@ -463,6 +465,22 @@ public class MigrationManager
         announce(builder, announceLocally);
     }
 
+    public static void buildColumnFamilyUpdate(CFMetaData cfm, Collection<ViewDefinition> views, Mutation.SimpleBuilder ksMutationsBuilder) throws ConfigurationException
+    {
+        cfm.validate();
+
+        CFMetaData oldCfm = Schema.instance.getCFMetaData(cfm.ksName, cfm.cfName);
+        if (oldCfm == null)
+            throw new ConfigurationException(String.format("Cannot update non existing table '%s' in keyspace '%s'.", cfm.cfName, cfm.ksName));
+
+        oldCfm.validateCompatibility(cfm);
+
+        logger.info("Update table '{}/{}' From {} To {}", cfm.ksName, cfm.cfName, oldCfm, cfm);
+
+        if (views != null)
+            views.forEach(view -> addViewUpdateToMutationBuilder(view, ksMutationsBuilder));
+    }
+
     public static void announceViewUpdate(ViewDefinition view, boolean announceLocally) throws ConfigurationException
     {
         KeyspaceMetadata ksm = Schema.instance.getKSMetaData(view.ksName);
@@ -472,7 +490,7 @@ public class MigrationManager
         announce(builder, announceLocally);
     }
 
-    private static void addViewUpdateToMutationBuilder(ViewDefinition view, Mutation.SimpleBuilder builder)
+    public static void addViewUpdateToMutationBuilder(ViewDefinition view, Mutation.SimpleBuilder builder)
     {
         view.metadata.validate();
 
@@ -563,7 +581,7 @@ public class MigrationManager
      * actively announce a new version to active hosts via rpc
      * @param schema The schema mutation to be applied
      */
-    private static void announce(Mutation.SimpleBuilder schema, boolean announceLocally)
+    public static void announce(Mutation.SimpleBuilder schema, boolean announceLocally)
     {
         List<Mutation> mutations = Collections.singletonList(schema.build());
 

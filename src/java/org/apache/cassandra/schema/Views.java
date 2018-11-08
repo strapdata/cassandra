@@ -21,6 +21,7 @@ package org.apache.cassandra.schema;
 
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -71,6 +72,11 @@ public final class Views implements Iterable<ViewDefinition>
     public boolean isEmpty()
     {
         return views.isEmpty();
+    }
+
+    public Views copy()
+    {
+    	return builder().add(views.values().stream().map(v -> v.copy()).collect(Collectors.toList())).build();
     }
 
     /**

@@ -19,6 +19,7 @@ package org.apache.cassandra.schema;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -80,6 +81,11 @@ public final class Types implements Iterable<UserType>
     public Iterator<UserType> iterator()
     {
         return types.values().iterator();
+    }
+
+    public Types copy()
+    {
+    	return builder().add(types.values().stream().map(ut -> ut.copy()).collect(Collectors.toList())).build();
     }
 
     /**
