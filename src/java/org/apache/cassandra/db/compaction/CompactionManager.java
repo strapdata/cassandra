@@ -1695,7 +1695,7 @@ public class CompactionManager implements CompactionManagerMBean
     /**
      * Is not scheduled, because it is performing disjoint work from sstable compaction.
      */
-    public Future<?> submitIndexBuild(final SecondaryIndexBuilder builder)
+    public ListenableFuture<?> submitIndexBuild(final SecondaryIndexBuilder builder)
     {
         Runnable runnable = new Runnable()
         {
@@ -1908,7 +1908,7 @@ public class CompactionManager implements CompactionManagerMBean
          * @return the future that will deliver the task result, or a future that has already been
          *         cancelled if the task could not be submitted.
          */
-        public ListenableFuture<?> submitIfRunning(Callable<?> task, String name)
+        public <T> ListenableFuture<T> submitIfRunning(Callable<T> task, String name)
         {
             if (isShutdown())
             {
@@ -1918,7 +1918,7 @@ public class CompactionManager implements CompactionManagerMBean
 
             try
             {
-                ListenableFutureTask ret = ListenableFutureTask.create(task);
+                ListenableFutureTask<T> ret = ListenableFutureTask.create(task);
                 execute(ret);
                 return ret;
             }
