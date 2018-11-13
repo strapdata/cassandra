@@ -421,7 +421,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         minCompactionThreshold = new DefaultValue<>(metadata.params.compaction.minCompactionThreshold());
         maxCompactionThreshold = new DefaultValue<>(metadata.params.compaction.maxCompactionThreshold());
         crcCheckChance = new DefaultValue<>(metadata.params.crcCheckChance);
-        indexManager = new SecondaryIndexManager(this);
         viewManager = keyspace.viewManager.forTable(metadata);
         metric = new TableMetrics(this);
         fileIndexGenerator.set(generation);
@@ -466,6 +465,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         }
 
         // create the private ColumnFamilyStores for the secondary column indexes
+        indexManager = new SecondaryIndexManager(this);
         for (IndexMetadata info : metadata.getIndexes())
             indexManager.addIndex(info);
 
