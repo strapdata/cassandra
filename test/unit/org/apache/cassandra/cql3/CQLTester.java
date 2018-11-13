@@ -29,9 +29,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import org.junit.*;
 import org.slf4j.Logger;
@@ -43,6 +46,7 @@ import com.datastax.driver.core.ResultSet;
 
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
+import org.apache.cassandra.index.SecondaryIndexManager;
 import org.apache.cassandra.config.CFMetaData;
 import org.apache.cassandra.metrics.ClientMetrics;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -58,6 +62,7 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.SyntaxException;
 import org.apache.cassandra.io.util.FileUtils;
+import org.apache.cassandra.schema.Indexes;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.QueryState;
@@ -92,12 +97,20 @@ public abstract class CQLTester
     protected static final int nativePort;
     protected static final InetAddress nativeAddr;
     private static final Map<ProtocolVersion, Cluster> clusters = new HashMap<>();
-    private static final Map<ProtocolVersion, Session> sessions = new HashMap<>();
+    protected static final Map<ProtocolVersion, Session> sessions = new HashMap<>();
     protected static ConfiguredLimit protocolVersionLimit;
 
     private static boolean isServerPrepared = false;
 
     public static final List<ProtocolVersion> PROTOCOL_VERSIONS = new ArrayList<>(ProtocolVersion.SUPPORTED.size());
+
+    private static final String CREATE_INDEX_NAME_REGEX = "(\\s*(\\w*|\"\\w*\")\\s*)";
+    private static final String CREATE_INDEX_REGEX = String.format("\\A\\s*CREATE(?:\\s+CUSTOM)?\\s+INDEX" +
+                                                                   "(?:\\s+IF\\s+NOT\\s+EXISTS)?\\s*" +
+                                                                   "%s?\\s*ON\\s+(%<s\\.)?%<s\\s*" +
+                                                                   "(\\((?:\\s*\\w+\\s*\\()?%<s\\))?",
+                                                                   CREATE_INDEX_NAME_REGEX);
+    private static final Pattern CREATE_INDEX_PATTERN = Pattern.compile(CREATE_INDEX_REGEX, Pattern.CASE_INSENSITIVE);
 
     /** Return the current server version if supported by the driver, else
      * the latest that is supported.
@@ -690,15 +703,40 @@ public abstract class CQLTester
         schemaChange(formattedQuery);
     }
 
-    protected void createIndex(String query)
+    protected String createIndex(String query)
     {
-        createFormattedIndex(formatQuery(query));
+        String formattedQuery = formatQuery(query);
+        return createFormattedIndex(formattedQuery);
     }
 
-    protected void createFormattedIndex(String formattedQuery)
+    protected String createFormattedIndex(String formattedQuery)
     {
         logger.info(formattedQuery);
+        String indexName = getCreateIndexName(formattedQuery);
         schemaChange(formattedQuery);
+        return indexName;
+    }
+
+    protected static String getCreateIndexName(String formattedQuery)
+    {
+        Matcher matcher = CREATE_INDEX_PATTERN.matcher(formattedQuery);
+        if (!matcher.find())
+            throw new IllegalArgumentException("Expected valid create index query but found: " + formattedQuery);
+
+        String index = matcher.group(2);
+        if (!Strings.isNullOrEmpty(index))
+            return index;
+
+        String keyspace = matcher.group(5);
+        if (Strings.isNullOrEmpty(keyspace))
+            throw new IllegalArgumentException("Keyspace name should be specified: " + formattedQuery);
+
+        String table = matcher.group(7);
+        if (Strings.isNullOrEmpty(table))
+            throw new IllegalArgumentException("Table name should be specified: " + formattedQuery);
+
+        String column = matcher.group(9);
+        return Indexes.getAvailableIndexName(keyspace, table, Strings.isNullOrEmpty(column) ? null : column);
     }
 
     /**
@@ -729,6 +767,38 @@ public abstract class CQLTester
         }
 
         return indexCreated;
+    }
+
+    /**
+     * Index creation is asynchronous, this method waits until the specified index hasn't any building task running.
+     * <p>
+     * This method differs from {@link #waitForIndex(String, String, String)} in that it doesn't require the index to be
+     * fully nor successfully built, so it can be used to wait for failing index builds.
+     *
+     * @param keyspace the index keyspace name
+     * @param indexName the index name
+     * @return {@code true} if the index build tasks have finished in 5 seconds, {@code false} otherwise
+     */
+    protected boolean waitForIndexBuilds(String keyspace, String indexName) throws InterruptedException
+    {
+        long start = System.currentTimeMillis();
+        SecondaryIndexManager indexManager = getCurrentColumnFamilyStore(keyspace).indexManager;
+
+        while (true)
+        {
+            if (!indexManager.isIndexBuilding(indexName))
+            {
+                return true;
+            }
+            else if (System.currentTimeMillis() - start > 5000)
+            {
+                return false;
+            }
+            else
+            {
+                Thread.sleep(10);
+            }
+        }
     }
 
     protected void createIndexMayThrow(String query) throws Throwable
