@@ -370,7 +370,7 @@ public class LeveledCompactionStrategyTest
         assertFalse(unrepaired.manifest.getLevel(2).contains(sstable1));
 
         unrepaired.removeSSTable(sstable2);
-        manager.handleNotification(new SSTableAddedNotification(singleton(sstable2)), this);
+        manager.handleNotification(new SSTableAddedNotification(singleton(sstable2), null), this);
         assertTrue(unrepaired.manifest.getLevel(1).contains(sstable2));
         assertFalse(repaired.manifest.getLevel(1).contains(sstable2));
     }
