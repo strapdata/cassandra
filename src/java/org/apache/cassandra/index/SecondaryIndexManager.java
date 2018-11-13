@@ -64,6 +64,9 @@ import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.index.internal.CassandraIndex;
 import org.apache.cassandra.index.transactions.*;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.notifications.INotification;
+import org.apache.cassandra.notifications.INotificationConsumer;
+import org.apache.cassandra.notifications.SSTableAddedNotification;
 import org.apache.cassandra.schema.IndexMetadata;
 import org.apache.cassandra.schema.Indexes;
 import org.apache.cassandra.service.pager.SinglePartitionPager;
@@ -120,7 +123,7 @@ import org.apache.cassandra.utils.concurrent.Refs;
  * <li>SSTable builds can always be run concurrently with any other builds.</li>
  * </ul>
  */
-public class SecondaryIndexManager implements IndexRegistry
+public class SecondaryIndexManager implements IndexRegistry, INotificationConsumer
 {
     private static final Logger logger = LoggerFactory.getLogger(SecondaryIndexManager.class);
 
@@ -169,6 +172,7 @@ public class SecondaryIndexManager implements IndexRegistry
     {
         this.baseCfs = baseCfs;
         this.keyspace = baseCfs.keyspace;
+        baseCfs.getTracker().subscribe(this);
     }
 
     /**
@@ -204,21 +208,11 @@ public class SecondaryIndexManager implements IndexRegistry
         final Index index = createInstance(indexDef);
         index.register(this);
 
-        if (index.delayInitializationTask()) 
+        if (index.delayInitializationTask())
         {
+        	logger.info("Delay initialization task for index {}.{}.{}", baseCfs.keyspace.getName(), baseCfs.metadata.cfName, indexDef.name);
         	return Futures.immediateFuture(null);
         }
-        return initIndex(index, isNewCF);
-    }
-
-    public synchronized Future<?> initIndex(final Index index) 
-    {
-        return initIndex(index, false);
-    }
-
-    private synchronized Future<?> initIndex(final Index index, boolean isNewCF) 
-    {
-    	IndexMetadata indexDef = index.getIndexMetadata();
 
         markIndexesBuilding(ImmutableSet.of(index), true, isNewCF);
 
@@ -401,8 +395,6 @@ public class SecondaryIndexManager implements IndexRegistry
         toRebuild.forEach(indexer -> markIndexRemoved(indexer.getIndexMetadata().name));
 
         buildIndexesBlocking(indexThreads, sstables, toRebuild, true);
-
-        toRebuild.forEach(indexer -> markIndexBuilt(indexer.getIndexMetadata().name));
     }
 
     public void buildAllIndexesBlocking(Collection<SSTableReader> sstables)
@@ -426,6 +418,59 @@ public class SecondaryIndexManager implements IndexRegistry
             }
         }
     }
+
+    // For convenience, may be called directly from Index impls
+    public Future<?> buildIndex(Index index)
+    {
+        if (index.shouldBuildBlocking())
+        {
+            try (ColumnFamilyStore.RefViewFragment viewFragment = baseCfs.selectAndReference(View.selectFunction(SSTableSet.CANONICAL));
+                 Refs<SSTableReader> sstables = viewFragment.refs)
+            {
+                return buildIndex(1, sstables, index, true);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Non-blocking Index build on the compaction manager, for used by 2i implementations.
+     * @param indexThreads
+     * @param sstables
+     * @param indexes
+     * @param isFullRebuild
+     */
+    private Future<?> buildIndex(int indexThreads, Collection<SSTableReader> sstables, Index index, boolean isFullRebuild)
+    {
+    	Set<Index> indexSingleton = Collections.singleton(index);
+
+    	// Mark all indexes as building: this step must happen first, because if any index can't be marked, the whole
+        // process needs to abort
+        markIndexesBuilding(indexSingleton, isFullRebuild, false);
+
+        Index.IndexBuildingSupport buildingSupport = index.getBuildTaskSupport();
+        SecondaryIndexBuilder builder = buildingSupport.getIndexBuildTask(indexThreads, baseCfs, indexSingleton, sstables);
+        final SettableFuture build = SettableFuture.create();
+        Futures.addCallback(CompactionManager.instance.submitIndexBuild(builder), new FutureCallback()
+        {
+            @Override
+            public void onFailure(Throwable t)
+            {
+                logAndMarkIndexesFailed(indexSingleton, t);
+                build.setException(t);
+            }
+
+            @Override
+            public void onSuccess(Object o)
+            {
+            	markIndexBuilt(index, isFullRebuild);
+                logger.info("Index build of {} completed", getIndexNames(indexSingleton));
+                build.set(o);
+            }
+        });
+        return build;
+    }
+
 
     /**
      * Checks if the specified {@link ColumnFamilyStore} is a secondary index.
@@ -700,11 +745,31 @@ public class SecondaryIndexManager implements IndexRegistry
     }
 
     /**
-     * Marks the specified index as built if there are no in progress index builds and the index is not failed.
-     * {@link #markIndexesBuilding(Set, boolean, boolean)} should always be invoked before this method.
+     * Marks the specified indexes as (re)building if:
+     * 1) There's no in progress rebuild of any of the given indexes.
+     * 2) There's an in progress rebuild but the caller is not a full rebuild.
+     * <p>
+     * Otherwise, this method invocation fails, as it is not possible to run full rebuilds while other concurrent rebuilds
+     * are in progress. Please note this is checked atomically against all given indexes; that is, no index will be marked
+     * if even a single one fails.
+     * <p>
+     * Marking an index as "building" practically means:
+     * 1) The index is removed from the "failed" set if this is a full rebuild.
+     * 2) The index is removed from the system keyspace built indexes; this only happens if this method is not invoked
+     * for a new table initialization, as in such case there's no need to remove it (it is either already not present,
+     * or already present because already built).
+     * <p>
+     * Thread safety is guaranteed by having all methods managing index builds synchronized: being synchronized on
+     * the SecondaryIndexManager instance, it means all invocations for all different indexes will go through the same
+     * lock, but this is fine as the work done while holding such lock is trivial.
+     * <p>
+     * {@link #markIndexBuilt(Index, boolean)} or {@link #markIndexFailed(Index)} should be always called after the
+     * rebuilding has finished, so that the index build state can be correctly managed and the index rebuilt.
      *
-     * @param index the index to be marked as built
+     * @param indexes the index to be marked as building
      * @param isFullRebuild {@code true} if this method is invoked as a full index rebuild, {@code false} otherwise
+     * @param isNewCF {@code true} if this method is invoked when initializing a new table/columnfamily (i.e. loading a CF at startup),
+     * {@code false} for all other cases (i.e. newly added index)
      */
     private synchronized void markIndexBuilt(Index index, boolean isFullRebuild)
     {
@@ -1563,5 +1628,22 @@ public class SecondaryIndexManager implements IndexRegistry
 				            }
 				        });
         FBUtilities.waitOnFutures(waitFor);
+    }
+
+    public void handleNotification(INotification notification, Object sender)
+    {
+        if (!indexes.isEmpty() && notification instanceof SSTableAddedNotification)
+        {
+            SSTableAddedNotification notice = (SSTableAddedNotification) notification;
+
+            // SSTables asociated to a memtable come from a flush, so their contents have already been indexed
+            if (!notice.memtable().isPresent())
+                buildIndexesBlocking(Lists.newArrayList(notice.added),
+                                     indexes.values()
+                                            .stream()
+                                            .filter(Index::shouldBuildBlocking)
+                                            .collect(Collectors.toSet()),
+                                     false);
+        }
     }
 }
