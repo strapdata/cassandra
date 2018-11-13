@@ -378,7 +378,7 @@ public class Tracker
         notifyDiscarded(memtable);
 
         // TODO: if we're invalidated, should we notifyadded AND removed, or just skip both?
-        fail = notifyAdded(sstables, false, fail);
+        fail = notifyAdded(sstables, false, memtable, fail);
 
         if (!isDummy() && !cfstore.isValid())
             dropSSTables();
@@ -436,11 +436,11 @@ public class Tracker
         return accumulate;
     }
 
-    Throwable notifyAdded(Iterable<SSTableReader> added, boolean isInitialSSTables, Throwable accumulate)
+    Throwable notifyAdded(Iterable<SSTableReader> added, boolean isInitialSSTables, Memtable memtable, Throwable accumulate)
     {
         INotification notification;
         if (!isInitialSSTables)
-            notification = new SSTableAddedNotification(added);
+            notification = new SSTableAddedNotification(added, memtable);
         else
             notification = new InitialSSTableAddedNotification(added);
 
@@ -460,7 +460,7 @@ public class Tracker
 
     void notifyAdded(Iterable<SSTableReader> added, boolean isInitialSSTables)
     {
-        maybeFail(notifyAdded(added, isInitialSSTables, null));
+        maybeFail(notifyAdded(added, isInitialSSTables, null, null));
     }
 
     public void notifySSTableRepairedStatusChanged(Collection<SSTableReader> repairStatusesChanged)
