@@ -42,8 +42,6 @@ import org.apache.cassandra.gms.*;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.net.IAsyncCallback;
-import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.schema.KeyspaceMetadata;
@@ -202,16 +200,28 @@ public class MigrationManager
         }
     }
 
+    public void notifyBeginTransaction()
+    {
+        for (MigrationListener listener : listeners)
+            listener.onBeginTransaction();
+    }
+
+    public void notifyEndTransaction()
+    {
+        for (MigrationListener listener : listeners)
+            listener.onEndTransaction();
+    }
+
     public void notifyCreateKeyspace(KeyspaceMetadata ksm)
     {
         for (MigrationListener listener : listeners)
-            listener.onCreateKeyspace(ksm.name);
+            listener.onCreateKeyspace(ksm);
     }
 
-    public void notifyCreateColumnFamily(CFMetaData cfm)
+    public void notifyCreateColumnFamily(KeyspaceMetadata ksm, CFMetaData cfm)
     {
         for (MigrationListener listener : listeners)
-            listener.onCreateColumnFamily(cfm.ksName, cfm.cfName);
+            listener.onCreateColumnFamily(ksm, cfm);
     }
 
     public void notifyCreateView(ViewDefinition view)
@@ -241,13 +251,13 @@ public class MigrationManager
     public void notifyUpdateKeyspace(KeyspaceMetadata ksm)
     {
         for (MigrationListener listener : listeners)
-            listener.onUpdateKeyspace(ksm.name);
+            listener.onUpdateKeyspace(ksm);
     }
 
-    public void notifyUpdateColumnFamily(CFMetaData cfm, boolean columnsDidChange)
+    public void notifyUpdateColumnFamily(KeyspaceMetadata ksm, CFMetaData cfm, boolean columnsDidChange)
     {
         for (MigrationListener listener : listeners)
-            listener.onUpdateColumnFamily(cfm.ksName, cfm.cfName, columnsDidChange);
+            listener.onUpdateColumnFamily(ksm, cfm, columnsDidChange);
     }
 
     public void notifyUpdateView(ViewDefinition view, boolean columnsDidChange)
@@ -280,13 +290,13 @@ public class MigrationManager
     public void notifyDropKeyspace(KeyspaceMetadata ksm)
     {
         for (MigrationListener listener : listeners)
-            listener.onDropKeyspace(ksm.name);
+            listener.onDropKeyspace(ksm);
     }
 
-    public void notifyDropColumnFamily(CFMetaData cfm)
+    public void notifyDropColumnFamily(KeyspaceMetadata ksm, CFMetaData cfm)
     {
         for (MigrationListener listener : listeners)
-            listener.onDropColumnFamily(cfm.ksName, cfm.cfName);
+            listener.onDropColumnFamily(ksm, cfm);
     }
 
     public void notifyDropView(ViewDefinition view)
@@ -581,7 +591,7 @@ public class MigrationManager
      * actively announce a new version to active hosts via rpc
      * @param schema The schema mutation to be applied
      */
-    public static void announce(Mutation.SimpleBuilder schema, boolean announceLocally)
+    private static void announce(Mutation.SimpleBuilder schema, boolean announceLocally)
     {
         List<Mutation> mutations = Collections.singletonList(schema.build());
 
@@ -600,7 +610,7 @@ public class MigrationManager
     }
 
     // Returns a future on the local application of the schema
-    private static Future<?> announce(final Collection<Mutation> schema)
+    public static Future<?> announce(final Collection<Mutation> schema)
     {
         Future<?> f = StageManager.getStage(Stage.MIGRATION).submit(new WrappedRunnable()
         {

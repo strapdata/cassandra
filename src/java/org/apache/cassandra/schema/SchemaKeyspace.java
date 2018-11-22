@@ -45,6 +45,7 @@ import org.apache.cassandra.db.filter.ColumnFilter;
 import org.apache.cassandra.db.view.View;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.InvalidRequestException;
+import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
@@ -1423,6 +1424,9 @@ public final class SchemaKeyspace
 
     private static synchronized void mergeSchema(Keyspaces before, Keyspaces after)
     {
+    	// notify begin of schema update transaction.
+    	MigrationManager.instance.notifyBeginTransaction();
+
         MapDifference<String, KeyspaceMetadata> keyspacesDiff = before.diff(after);
 
         // dropped keyspaces
@@ -1450,6 +1454,9 @@ public final class SchemaKeyspace
         // updated keyspaces
         for (Map.Entry<String, MapDifference.ValueDifference<KeyspaceMetadata>> diff : keyspacesDiff.entriesDiffering().entrySet())
             updateKeyspace(diff.getKey(), diff.getValue().leftValue(), diff.getValue().rightValue());
+
+        // notify begin of schema update transaction.
+    	MigrationManager.instance.notifyEndTransaction();
     }
 
     private static void updateKeyspace(String keyspaceName, KeyspaceMetadata keyspaceBefore, KeyspaceMetadata keyspaceAfter)
