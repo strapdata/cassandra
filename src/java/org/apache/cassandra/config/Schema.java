@@ -672,12 +672,13 @@ public class Schema
         // Make sure the keyspace is initialized
         // and init the new CF before switching the KSM to the new one
         // to avoid races as in CASSANDRA-10761
-        Keyspace.open(cfm.ksName).initCf(cfm, true);
+        Keyspace keyspace = Keyspace.open(cfm.ksName);
+        keyspace.initCf(cfm, true);
         // Update the keyspaces map with the updated metadata
         update(cfm.ksName, ks -> ks.withSwapped(ks.tables.with(cfm)));
         // Update the table ID <-> table name map (cfIdMap)
         load(cfm);
-        MigrationManager.instance.notifyCreateColumnFamily(cfm);
+        MigrationManager.instance.notifyCreateColumnFamily(keyspace.getMetadata(), cfm);
     }
 
     public void updateTable(CFMetaData table)
@@ -688,7 +689,7 @@ public class Schema
 
         Keyspace keyspace = Keyspace.open(current.ksName);
         keyspace.getColumnFamilyStore(current.cfName).reload();
-        MigrationManager.instance.notifyUpdateColumnFamily(current, changeAffectsStatements);
+        MigrationManager.instance.notifyUpdateColumnFamily(keyspace.getMetadata(), current, changeAffectsStatements);
     }
 
     public void dropTable(String ksName, String tableName)
@@ -712,8 +713,9 @@ public class Schema
 
         if (DatabaseDescriptor.isAutoSnapshot())
             cfs.snapshot(Keyspace.getTimestampedSnapshotNameWithPrefix(cfs.name, ColumnFamilyStore.SNAPSHOT_DROP_PREFIX));
-        Keyspace.open(ksName).dropCf(cfm.cfId);
-        MigrationManager.instance.notifyDropColumnFamily(cfm);
+        Keyspace keyspace = Keyspace.open(ksName);
+        keyspace.dropCf(cfm.cfId);
+        MigrationManager.instance.notifyDropColumnFamily(keyspace.getMetadata(), cfm);
 
         CommitLog.instance.forceRecycleAllSegments(Collections.singleton(cfm.cfId));
     }
