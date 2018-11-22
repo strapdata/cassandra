@@ -39,8 +39,6 @@ import org.apache.cassandra.gms.*;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
-import org.apache.cassandra.net.IAsyncCallback;
-import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.schema.KeyspaceMetadata;
@@ -76,16 +74,30 @@ public class MigrationManager
         return version == MessagingService.current_version || version == MessagingService.VERSION_3014;
     }
 
+    public void notifyBeginTransaction(Collection<MigrationListener> inhibitedListeners)
+    {
+        for (MigrationListener listener : listeners)
+            if (!inhibitedListeners.contains(listener))
+                listener.onBeginTransaction();
+    }
+
+    public void notifyEndTransaction(Collection<MigrationListener> inhibitedListeners)
+    {
+        for (MigrationListener listener : listeners)
+            if (!inhibitedListeners.contains(listener))
+                listener.onEndTransaction();
+    }
+
     public void notifyCreateKeyspace(KeyspaceMetadata ksm)
     {
         for (MigrationListener listener : listeners)
-            listener.onCreateKeyspace(ksm.name);
+            listener.onCreateKeyspace(ksm);
     }
 
-    public void notifyCreateColumnFamily(CFMetaData cfm)
+    public void notifyCreateColumnFamily(KeyspaceMetadata ksm, CFMetaData cfm)
     {
         for (MigrationListener listener : listeners)
-            listener.onCreateColumnFamily(cfm.ksName, cfm.cfName);
+            listener.onCreateColumnFamily(ksm, cfm);
     }
 
     public void notifyCreateView(ViewDefinition view)
@@ -115,13 +127,13 @@ public class MigrationManager
     public void notifyUpdateKeyspace(KeyspaceMetadata ksm)
     {
         for (MigrationListener listener : listeners)
-            listener.onUpdateKeyspace(ksm.name);
+            listener.onUpdateKeyspace(ksm);
     }
 
-    public void notifyUpdateColumnFamily(CFMetaData cfm, boolean columnsDidChange)
+    public void notifyUpdateColumnFamily(KeyspaceMetadata ksm, CFMetaData cfm, boolean columnsDidChange)
     {
         for (MigrationListener listener : listeners)
-            listener.onUpdateColumnFamily(cfm.ksName, cfm.cfName, columnsDidChange);
+            listener.onUpdateColumnFamily(ksm, cfm, columnsDidChange);
     }
 
     public void notifyUpdateView(ViewDefinition view, boolean columnsDidChange)
@@ -154,13 +166,13 @@ public class MigrationManager
     public void notifyDropKeyspace(KeyspaceMetadata ksm)
     {
         for (MigrationListener listener : listeners)
-            listener.onDropKeyspace(ksm.name);
+            listener.onDropKeyspace(ksm);
     }
 
-    public void notifyDropColumnFamily(CFMetaData cfm)
+    public void notifyDropColumnFamily(KeyspaceMetadata ksm, CFMetaData cfm)
     {
         for (MigrationListener listener : listeners)
-            listener.onDropColumnFamily(cfm.ksName, cfm.cfName);
+            listener.onDropColumnFamily(ksm, cfm);
     }
 
     public void notifyDropView(ViewDefinition view)
@@ -445,9 +457,9 @@ public class MigrationManager
         List<Mutation> mutations = Collections.singletonList(schema.build());
 
         if (announceLocally)
-            SchemaKeyspace.mergeSchema(mutations);
+            SchemaKeyspace.mergeSchema(mutations, Collections.EMPTY_LIST);
         else
-            FBUtilities.waitOnFuture(announce(mutations));
+            FBUtilities.waitOnFuture(announce(mutations, (Collection<MigrationListener>) Collections.EMPTY_LIST));
     }
 
     private static void pushSchemaMutation(InetAddress endpoint, Collection<Mutation> schema)
@@ -460,16 +472,16 @@ public class MigrationManager
     }
 
     // Returns a future on the local application of the schema
-    private static Future<?> announce(final Collection<Mutation> schema)
+    public static Future<?> announce(final Collection<Mutation> schema, Collection<MigrationListener> inhibitedListeners)
     {
-        Future<?> f = announceWithoutPush(schema);
+        Future<?> f = announceWithoutPush(schema, inhibitedListeners);
 
         for (InetAddress endpoint : Gossiper.instance.getLiveMembers())
         {
             // only push schema to nodes with known and equal versions
             if (!endpoint.equals(FBUtilities.getBroadcastAddress()) &&
-                MessagingService.instance().knowsVersion(endpoint) &&
-                is30Compatible(MessagingService.instance().getRawVersion(endpoint)))
+                    MessagingService.instance().knowsVersion(endpoint) &&
+                    is30Compatible(MessagingService.instance().getRawVersion(endpoint)))
                 pushSchemaMutation(endpoint, schema);
         }
 
@@ -478,11 +490,15 @@ public class MigrationManager
 
     public static Future<?> announceWithoutPush(Collection<Mutation> schema)
     {
+        return announceWithoutPush(schema, Collections.EMPTY_LIST);
+    }
+    public static Future<?> announceWithoutPush(Collection<Mutation> schema, Collection<MigrationListener> inhibitedListeners)
+    {
         return StageManager.getStage(Stage.MIGRATION).submit(new WrappedRunnable()
         {
             protected void runMayThrow() throws ConfigurationException
             {
-                SchemaKeyspace.mergeSchemaAndAnnounceVersion(schema);
+                SchemaKeyspace.mergeSchemaAndAnnounceVersion(schema, inhibitedListeners);
             }
         });
     }

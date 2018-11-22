@@ -39,6 +39,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 
+import org.apache.cassandra.service.MigrationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +92,7 @@ import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.locator.LocalStrategy;
 import org.apache.cassandra.service.PendingRangeCalculatorService;
+import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
@@ -104,7 +106,7 @@ import static org.apache.cassandra.schema.CQLTypeParser.parse;
 
 /**
  * system_schema.* tables and methods for manipulating them.
-*/
+ */
 public final class SchemaKeyspace
 {
     private SchemaKeyspace()
@@ -1395,7 +1397,7 @@ public final class SchemaKeyspace
     {
         Keyspaces before = Schema.instance.getReplicatedKeyspaces();
         Keyspaces after = fetchNonSystemKeyspaces();
-        mergeSchema(before, after);
+        mergeSchema(before, after, Collections.EMPTY_LIST);
         Schema.instance.updateVersionAndAnnounce();
     }
 
@@ -1409,11 +1411,29 @@ public final class SchemaKeyspace
      */
     public static synchronized void mergeSchemaAndAnnounceVersion(Collection<Mutation> mutations) throws ConfigurationException
     {
-        mergeSchema(mutations);
+        mergeSchemaAndAnnounceVersion(mutations, Collections.EMPTY_LIST);
+    }
+
+    /**
+     * Merge remote schema in form of mutations with local and mutate ks/cf metadata objects
+     * (which also involves fs operations on add/drop ks/cf)
+     *
+     * @param mutations the schema changes to apply
+     *
+     * @throws ConfigurationException If one of metadata attributes has invalid value
+     */
+    public static synchronized void mergeSchemaAndAnnounceVersion(Collection<Mutation> mutations, Collection<MigrationListener> inhibitedListeners) throws ConfigurationException
+    {
+        mergeSchema(mutations, inhibitedListeners);
         Schema.instance.updateVersionAndAnnounce();
     }
 
     public static synchronized void mergeSchema(Collection<Mutation> mutations)
+    {
+        mergeSchema(mutations, Collections.EMPTY_LIST);
+    }
+
+    public static synchronized void mergeSchema(Collection<Mutation> mutations, Collection<MigrationListener> inhibitedListeners)
     {
         // only compare the keyspaces affected by this set of schema mutations
         Set<String> affectedKeyspaces =
@@ -1432,11 +1452,18 @@ public final class SchemaKeyspace
         // fetch the new state of schema from schema tables (not applied to Schema.instance yet)
         Keyspaces after = fetchKeyspacesOnly(affectedKeyspaces);
 
-        mergeSchema(before, after);
+        mergeSchema(before, after, inhibitedListeners);
     }
 
-    private static synchronized void mergeSchema(Keyspaces before, Keyspaces after)
+    private static synchronized void mergeSchema(Keyspaces before, Keyspaces after) {
+        mergeSchema(before, after, Collections.EMPTY_LIST);
+    }
+
+    private static synchronized void mergeSchema(Keyspaces before, Keyspaces after, Collection<MigrationListener> inhibitedListeners)
     {
+        // notify begin of schema update transaction.
+        MigrationManager.instance.notifyBeginTransaction(inhibitedListeners);
+
         MapDifference<String, KeyspaceMetadata> keyspacesDiff = before.diff(after);
 
         // dropped keyspaces
@@ -1471,6 +1498,9 @@ public final class SchemaKeyspace
         // updated keyspaces
         for (Map.Entry<String, MapDifference.ValueDifference<KeyspaceMetadata>> diff : keyspacesDiff.entriesDiffering().entrySet())
             updateKeyspace(diff.getKey(), diff.getValue().leftValue(), diff.getValue().rightValue());
+
+        // notify begin of schema update transaction.
+    	MigrationManager.instance.notifyEndTransaction(inhibitedListeners);
     }
 
     private static void updateKeyspace(String keyspaceName, KeyspaceMetadata keyspaceBefore, KeyspaceMetadata keyspaceAfter)
