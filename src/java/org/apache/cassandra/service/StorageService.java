@@ -971,9 +971,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 setMode(Mode.JOINING, "Replacing a node with token(s): " + bootstrapTokens, true);
             }
 
-            if (this.daemon != null)
-                this.daemon.beforeBootstrap();
-            
             dataAvailable = bootstrap(bootstrapTokens);
         }
         else
@@ -990,7 +987,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 else
                     logger.info("Using saved tokens {}", bootstrapTokens);
             }
-            
+
             if (this.daemon != null)
                 this.daemon.ringReady();
         }
@@ -1498,7 +1495,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         // Force disk boundary invalidation now that local tokens are set
         invalidateDiskBoundaries();
 
+        if (this.daemon != null)
+            this.daemon.beforeBootstrap();
+
         setMode(Mode.JOINING, "Starting to bootstrap...", true);
+
         BootStrapper bootstrapper = new BootStrapper(FBUtilities.getBroadcastAddress(), tokens, tokenMetadata);
         bootstrapper.addProgressListener(progressSupport);
         ListenableFuture<StreamState> bootstrapStream = bootstrapper.bootstrap(streamStateStore, useStrictConsistency && !replacing); // handles token update
@@ -1893,7 +1894,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         return getTokenMetadata().getHostId(endpoint);
     }
-    
+
     public Map<String, String> getHostIdToEndpoint()
     {
         Map<String, String> mapOut = new HashMap<>();
@@ -5110,11 +5111,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         return sampledKeys;
     }
 
-    public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames) 
+    public void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames)
     {
         rebuildSecondaryIndex(1, ksName, cfName, idxNames);
     }
-    
+
     public void rebuildSecondaryIndex(int indexThreads, String ksName, String cfName, String... idxNames)
     {
         String[] indices = asList(idxNames).stream()
