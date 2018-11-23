@@ -107,7 +107,7 @@ public abstract class AlterTypeStatement extends SchemaAlteringStatement
                          .orElseThrow(() -> new InvalidRequestException(String.format("No user type named %s exists.", name)));
 
         UserType updated = makeUpdatedType(toUpdate, ksm);
-        ksm = ksm.withSwapped(ksm.types.with(updated));
+        ksm = ksm.withSwapped(ksm.types.without(updated.name).with(updated));
         Mutation.SimpleBuilder builder = SchemaKeyspace.makeCreateKeyspaceMutation(ksm.name, FBUtilities.timestampMicros());
         SchemaKeyspace.addTypeToSchemaMutation(updated, builder);
 
@@ -326,7 +326,7 @@ public abstract class AlterTypeStatement extends SchemaAlteringStatement
             newNames.addAll(toUpdate.fieldNames());
             newNames.add(fieldName);
 
-            AbstractType<?> addType = type.prepare(keyspace()).getType();
+            AbstractType<?> addType = type.prepare(ksm).getType();
             if (addType.referencesUserType(toUpdate.getNameAsString()))
                 throw new InvalidRequestException(String.format("Cannot add new field %s of type %s to type %s as this would create a circular reference", fieldName, type, name));
 
