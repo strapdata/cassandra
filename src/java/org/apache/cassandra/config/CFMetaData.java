@@ -489,15 +489,21 @@ public final class CFMetaData
         return triggers;
     }
 
-    // Compiles a system metadata
+    // compilation should validate statement against a provided keyspace metadata
     public static CFMetaData compile(String cql, String keyspace)
     {
+    	return compile(cql, KeyspaceMetadata.create(keyspace, KeyspaceParams.local()));
+    }
+
+    // Compiles a system metadata
+    public static CFMetaData compile(String cql, KeyspaceMetadata ksm)
+    {
         CFStatement parsed = (CFStatement)QueryProcessor.parseStatement(cql);
-        parsed.prepareKeyspace(keyspace);
-        CreateTableStatement statement = (CreateTableStatement) ((CreateTableStatement.RawStatement) parsed).prepare(Types.none()).statement;
+        parsed.prepareKeyspace(ksm.name);
+        CreateTableStatement statement = (CreateTableStatement) ((CreateTableStatement.RawStatement) parsed).prepare(ksm, ksm.types).statement;
 
         return statement.metadataBuilder()
-                        .withId(generateLegacyCfId(keyspace, statement.columnFamily()))
+                        .withId(generateLegacyCfId(ksm.name, statement.columnFamily()))
                         .build()
                         .params(statement.params())
                         .readRepairChance(0.0)
@@ -995,6 +1001,11 @@ public final class CFMetaData
 
     public CFMetaData validate() throws ConfigurationException
     {
+    	return validate(Schema.instance.getKSMetaData(ksName));
+    }
+
+    public CFMetaData validate(KeyspaceMetadata ksm) throws ConfigurationException
+    {
         rebuild();
 
         if (!isNameValid(ksName))
@@ -1028,9 +1039,6 @@ public final class CFMetaData
 
         if (!indexes.isEmpty() && isSuper())
             throw new ConfigurationException("Secondary indexes are not supported on super column families");
-
-        // initialize a set of names NOT in the CF under consideration
-        KeyspaceMetadata ksm = Schema.instance.getKSMetaData(ksName);
 
         Set<String> indexNames = ksm == null ? new HashSet<>() : ksm.existingIndexNames(cfName);
         for (IndexMetadata index : indexes)
