@@ -524,17 +524,20 @@ public interface CQL3Type
 
         public CQL3Type prepare(String keyspace)
         {
-            KeyspaceMetadata ksm = Schema.instance.getKSMetaData(keyspace);
-            if (ksm == null)
-                throw new ConfigurationException(String.format("Keyspace %s doesn't exist", keyspace));
-            return prepare(keyspace, ksm.types);
+            KeyspaceMetadata ksm = Schema.instance.getKSMetaDataSafe(keyspace);
+            return prepare(ksm, ksm.types);
         }
 
-        public abstract CQL3Type prepare(String keyspace, Types udts) throws InvalidRequestException;
-
-        public CQL3Type prepareInternal(String keyspace, Types udts) throws InvalidRequestException
+        public CQL3Type prepare(KeyspaceMetadata ksm) throws InvalidRequestException
         {
-            return prepare(keyspace, udts);
+        	return prepare(ksm, ksm.types);
+        }
+
+        public abstract CQL3Type prepare(KeyspaceMetadata ksm, Types udts) throws InvalidRequestException;
+
+        public CQL3Type prepareInternal(KeyspaceMetadata ksm, Types udts) throws InvalidRequestException
+        {
+            return prepare(ksm, udts);
         }
 
         public boolean referencesUserType(String name)
@@ -587,21 +590,25 @@ public interface CQL3Type
                 this.type = type;
             }
 
-            public CQL3Type prepare(String keyspace, Types udts) throws InvalidRequestException
+            @Override
+            public CQL3Type prepare(KeyspaceMetadata ksm, Types udts) throws InvalidRequestException
             {
                 return type;
             }
 
+            @Override
             public boolean supportsFreezing()
             {
                 return false;
             }
 
+            @Override
             public boolean isCounter()
             {
                 return type == Native.COUNTER;
             }
 
+            @Override
             public boolean isDuration()
             {
                 return type == Native.DURATION;
@@ -627,6 +634,7 @@ public interface CQL3Type
                 this.values = values;
             }
 
+            @Override
             public void freeze() throws InvalidRequestException
             {
                 if (keys != null && keys.supportsFreezing())
@@ -636,6 +644,7 @@ public interface CQL3Type
                 frozen = true;
             }
 
+            @Override
             public boolean supportsFreezing()
             {
                 return true;
@@ -646,17 +655,19 @@ public interface CQL3Type
                 return true;
             }
 
-            public CQL3Type prepare(String keyspace, Types udts) throws InvalidRequestException
+            @Override
+            public CQL3Type prepare(KeyspaceMetadata ksm, Types udts) throws InvalidRequestException
             {
-                return prepare(keyspace, udts, false);
+                return prepare(ksm, udts, false);
             }
 
-            public CQL3Type prepareInternal(String keyspace, Types udts)
+            @Override
+            public CQL3Type prepareInternal(KeyspaceMetadata ksm, Types udts)
             {
-                return prepare(keyspace, udts, true);
+                return prepare(ksm, udts, true);
             }
 
-            public CQL3Type prepare(String keyspace, Types udts, boolean isInternal) throws InvalidRequestException
+            public CQL3Type prepare(KeyspaceMetadata ksm, Types udts, boolean isInternal) throws InvalidRequestException
             {
                 assert values != null : "Got null values type for a collection";
 
@@ -681,7 +692,7 @@ public interface CQL3Type
                         throwNestedNonFrozenError(keys);
                 }
 
-                AbstractType<?> valueType = values.prepare(keyspace, udts).getType();
+                AbstractType<?> valueType = values.prepare(ksm, udts).getType();
                 switch (kind)
                 {
                     case LIST:
@@ -690,10 +701,11 @@ public interface CQL3Type
                         return new Collection(SetType.getInstance(valueType, !frozen));
                     case MAP:
                         assert keys != null : "Got null keys type for a collection";
-                        return new Collection(MapType.getInstance(keys.prepare(keyspace, udts).getType(), valueType, !frozen));
+                        return new Collection(MapType.getInstance(keys.prepare(ksm, udts).getType(), valueType, !frozen));
                 }
                 throw new AssertionError();
             }
+
 
             private void throwNestedNonFrozenError(Raw innerType)
             {
@@ -703,6 +715,7 @@ public interface CQL3Type
                     throw new InvalidRequestException("Non-frozen UDTs are not allowed inside collections: " + this);
             }
 
+            @Override
             public boolean referencesUserType(String name)
             {
                 return (keys != null && keys.referencesUserType(name)) || values.referencesUserType(name);
@@ -737,30 +750,33 @@ public interface CQL3Type
                 return name.getKeyspace();
             }
 
+            @Override
             public void freeze()
             {
                 frozen = true;
             }
 
+            @Override
             public boolean canBeNonFrozen()
             {
                 return true;
             }
 
-            public CQL3Type prepare(String keyspace, Types udts) throws InvalidRequestException
+            @Override
+            public CQL3Type prepare(KeyspaceMetadata ksm, Types udts) throws InvalidRequestException
             {
                 if (name.hasKeyspace())
                 {
                     // The provided keyspace is the one of the current statement this is part of. If it's different from the keyspace of
                     // the UTName, we reject since we want to limit user types to their own keyspace (see #6643)
-                    if (!keyspace.equals(name.getKeyspace()))
+                    if (!ksm.name.equals(name.getKeyspace()))
                         throw new InvalidRequestException(String.format("Statement on keyspace %s cannot refer to a user type in keyspace %s; "
                                                                         + "user types can only be used in the keyspace they are defined in",
-                                                                        keyspace, name.getKeyspace()));
+                                                                        ksm.name, name.getKeyspace()));
                 }
                 else
                 {
-                    name.setKeyspace(keyspace);
+                    name.setKeyspace(ksm.name);
                 }
 
                 UserType type = udts.getNullable(name.getUserTypeName());
@@ -772,16 +788,19 @@ public interface CQL3Type
                 return new UserDefined(name.toString(), type);
             }
 
+            @Override
             public boolean referencesUserType(String name)
             {
                 return this.name.getStringTypeName().equals(name);
             }
 
+            @Override
             public boolean supportsFreezing()
             {
                 return true;
             }
 
+            @Override
             public boolean isUDT()
             {
                 return true;
@@ -806,11 +825,13 @@ public interface CQL3Type
                 this.types = types;
             }
 
+            @Override
             public boolean supportsFreezing()
             {
                 return true;
             }
 
+            @Override
             public void freeze() throws InvalidRequestException
             {
                 for (CQL3Type.Raw t : types)
@@ -820,7 +841,8 @@ public interface CQL3Type
                 frozen = true;
             }
 
-            public CQL3Type prepare(String keyspace, Types udts) throws InvalidRequestException
+            @Override
+            public CQL3Type prepare(KeyspaceMetadata ksm, Types udts) throws InvalidRequestException
             {
                 if (!frozen)
                     freeze();
@@ -831,11 +853,12 @@ public interface CQL3Type
                     if (t.isCounter())
                         throw new InvalidRequestException("Counters are not allowed inside tuples");
 
-                    ts.add(t.prepare(keyspace, udts).getType());
+                    ts.add(t.prepare(ksm, udts).getType());
                 }
                 return new Tuple(new TupleType(ts));
             }
 
+            @Override
             public boolean referencesUserType(String name)
             {
                 return types.stream().anyMatch(t -> t.referencesUserType(name));
