@@ -195,13 +195,17 @@ public class CreateTableStatement extends SchemaAlteringStatement
          */
         public ParsedStatement.Prepared prepare(ClientState clientState) throws RequestValidationException
         {
-            KeyspaceMetadata ksm = Schema.instance.getKSMetaData(keyspace());
-            if (ksm == null)
-                throw new ConfigurationException(String.format("Keyspace %s doesn't exist", keyspace()));
-            return prepare(ksm.types);
+        	KeyspaceMetadata ksm = Schema.instance.getKSMetaDataSafe(keyspace());
+            return prepare(ksm, ksm.types);
         }
 
         public ParsedStatement.Prepared prepare(Types udts) throws RequestValidationException
+        {
+        	KeyspaceMetadata ksm = Schema.instance.getOrCreateKSMetaData(keyspace());
+            return prepare(ksm, udts);
+        }
+        
+        public ParsedStatement.Prepared prepare(KeyspaceMetadata ksm, Types udts) throws RequestValidationException
         {
             // Column family name
             if (!PATTERN_WORD_CHARS.matcher(columnFamily()).matches())
@@ -222,7 +226,7 @@ public class CreateTableStatement extends SchemaAlteringStatement
             for (Map.Entry<ColumnIdentifier, CQL3Type.Raw> entry : definitions.entrySet())
             {
                 ColumnIdentifier id = entry.getKey();
-                CQL3Type pt = entry.getValue().prepare(keyspace(), udts);
+                CQL3Type pt = entry.getValue().prepare(ksm, udts);
                 if (pt.getType().isMultiCell())
                     stmt.multicellColumns.put(id.bytes, pt.getType());
                 if (entry.getValue().isCounter())
