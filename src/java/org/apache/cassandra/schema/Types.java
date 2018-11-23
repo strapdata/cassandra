@@ -258,6 +258,7 @@ public final class Types implements Iterable<UserType>
                     resolvableTypes.add(entry.getKey());
 
             Types types = new Types(new HashMap<>());
+            KeyspaceMetadata ksm = KeyspaceMetadata.create(keyspace, KeyspaceParams.local());
             while (!resolvableTypes.isEmpty())
             {
                 RawUDT vertex = resolvableTypes.remove();
@@ -266,7 +267,7 @@ public final class Types implements Iterable<UserType>
                     if (vertices.replace(dependentType, vertices.get(dependentType) - 1) == 1)
                         resolvableTypes.add(dependentType);
 
-                UserType udt = vertex.prepare(keyspace, types);
+                UserType udt = vertex.prepare(ksm, types);
                 types.types.put(udt.name, udt);
             }
 
@@ -307,7 +308,7 @@ public final class Types implements Iterable<UserType>
                 return fieldTypes.stream().anyMatch(t -> t.referencesUserType(other.name));
             }
 
-            UserType prepare(String keyspace, Types types)
+            UserType prepare(KeyspaceMetadata ksm, Types types)
             {
                 List<FieldIdentifier> preparedFieldNames =
                     fieldNames.stream()
@@ -316,10 +317,10 @@ public final class Types implements Iterable<UserType>
 
                 List<AbstractType<?>> preparedFieldTypes =
                     fieldTypes.stream()
-                              .map(t -> t.prepareInternal(keyspace, types).getType())
+                              .map(t -> t.prepareInternal(ksm, types).getType())
                               .collect(toList());
 
-                return new UserType(keyspace, bytes(name), preparedFieldNames, preparedFieldTypes, true);
+                return new UserType(ksm.name, bytes(name), preparedFieldNames, preparedFieldTypes, true);
             }
 
             @Override

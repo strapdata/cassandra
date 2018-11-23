@@ -118,18 +118,14 @@ public class CreateTypeStatement extends SchemaAlteringStatement
 
     public UserType createType() throws InvalidRequestException
     {
-        List<AbstractType<?>> types = new ArrayList<>(columnTypes.size());
-        for (CQL3Type.Raw type : columnTypes)
-            types.add(type.prepare(keyspace()).getType());
-
-        return new UserType(name.getKeyspace(), name.getUserTypeName(), columnNames, types, true);
+    	return createType(Schema.instance.getKSMetaDataSafe(keyspace()));
     }
 
     public UserType createType(KeyspaceMetadata ksm) throws InvalidRequestException
     {
         List<AbstractType<?>> types = new ArrayList<>(columnTypes.size());
         for (CQL3Type.Raw type : columnTypes)
-            types.add(type.prepare(ksm.name, ksm.types).getType());
+            types.add(type.prepare(ksm).getType());
 
         return new UserType(name.getKeyspace(), name.getUserTypeName(), columnNames, types, true);
     }
