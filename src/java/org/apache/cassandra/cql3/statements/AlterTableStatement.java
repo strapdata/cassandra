@@ -154,7 +154,7 @@ public class AlterTableStatement extends SchemaAlteringStatement
                     dataType = colData.getColumnType();
                     assert dataType != null;
                     isStatic = colData.getStaticType();
-                    validator = dataType.prepare(ksm.name, ksm.types);
+                    validator = dataType.prepare(ksm);
 
 
                     if (isStatic)

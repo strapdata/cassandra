@@ -25,6 +25,8 @@ import org.apache.cassandra.db.marshal.UserType;
 
 import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
 
+import org.apache.cassandra.config.Schema;
+
 public final class CQLTypeParser
 {
     private static final ImmutableSet<String> PRIMITIVE_TYPES;
@@ -39,6 +41,11 @@ public final class CQLTypeParser
 
     public static AbstractType<?> parse(String keyspace, String unparsed, Types userTypes)
     {
+    	return parse(Schema.instance.getOrCreateKSMetaData(keyspace), unparsed, userTypes);
+    }
+
+    public static AbstractType<?> parse(KeyspaceMetadata ksm, String unparsed, Types userTypes)
+    {
         String lowercased = unparsed.toLowerCase();
 
         // fast path for the common case of a primitive type
@@ -50,7 +57,7 @@ public final class CQLTypeParser
         if (udt != null)
             return udt;
 
-        return parseRaw(unparsed).prepareInternal(keyspace, userTypes).getType();
+        return parseRaw(unparsed).prepareInternal(ksm, userTypes).getType();
     }
 
     static CQL3Type.Raw parseRaw(String type)

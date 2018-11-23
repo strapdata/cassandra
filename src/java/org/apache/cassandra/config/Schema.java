@@ -34,6 +34,7 @@ import org.apache.cassandra.db.commitlog.CommitLog;
 import org.apache.cassandra.db.compaction.CompactionManager;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.UserType;
+import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.index.Index;
 import org.apache.cassandra.io.sstable.Descriptor;
@@ -292,6 +293,20 @@ public class Schema
     {
         assert keyspaceName != null;
         return keyspaces.get(keyspaceName);
+    }
+
+    public KeyspaceMetadata getKSMetaDataSafe(String keyspaceName)
+    {
+    	KeyspaceMetadata ksm = getKSMetaData(keyspaceName);
+	    if (ksm == null)
+	        throw new ConfigurationException(String.format("Keyspace %s doesn't exist", keyspaceName));
+	    return ksm;
+    }
+
+    public KeyspaceMetadata getOrCreateKSMetaData(String keyspaceName)
+    {
+    	KeyspaceMetadata ksm = getKSMetaData(keyspaceName);
+	    return (ksm != null) ? ksm : KeyspaceMetadata.create(keyspaceName, KeyspaceParams.local());
     }
 
     private Set<String> getNonSystemKeyspacesSet()
