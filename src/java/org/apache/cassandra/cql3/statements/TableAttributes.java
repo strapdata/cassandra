@@ -20,6 +20,7 @@ package org.apache.cassandra.cql3.statements;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableSet;
 
@@ -28,6 +29,7 @@ import org.apache.cassandra.exceptions.SyntaxException;
 import org.apache.cassandra.schema.*;
 import org.apache.cassandra.schema.TableParams.Option;
 import org.apache.cassandra.service.ClientWarn;
+import org.apache.cassandra.utils.ByteBufferUtil;
 
 import static java.lang.String.format;
 
@@ -156,6 +158,12 @@ public final class TableAttributes extends PropertyDefinitions
 
         if (hasOption(Option.CDC))
             builder.cdc(getBoolean(Option.CDC.toString(), false));
+
+        if (hasOption(Option.EXTENSIONS))
+        {
+            builder.extensions(getMap(Option.EXTENSIONS).entrySet().stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey, e -> ByteBufferUtil.hexToBytes(e.getValue()))));
+        }
 
         return builder.build();
     }
