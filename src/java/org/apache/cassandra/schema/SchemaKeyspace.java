@@ -45,6 +45,7 @@ import org.apache.cassandra.db.filter.ColumnFilter;
 import org.apache.cassandra.db.view.View;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.InvalidRequestException;
+import org.apache.cassandra.service.MigrationListener;
 import org.apache.cassandra.service.MigrationManager;
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.utils.ByteBufferUtil;
@@ -1382,7 +1383,7 @@ public final class SchemaKeyspace
     {
         Keyspaces before = Schema.instance.getReplicatedKeyspaces();
         Keyspaces after = fetchNonSystemKeyspaces();
-        mergeSchema(before, after);
+        mergeSchema(before, after, Collections.EMPTY_LIST);
         Schema.instance.updateVersionAndAnnounce();
     }
 
@@ -1396,11 +1397,21 @@ public final class SchemaKeyspace
      */
     public static synchronized void mergeSchemaAndAnnounceVersion(Collection<Mutation> mutations) throws ConfigurationException
     {
-        mergeSchema(mutations);
+        mergeSchemaAndAnnounceVersion(mutations, Collections.EMPTY_LIST);
+    }
+
+    public static synchronized void mergeSchemaAndAnnounceVersion(Collection<Mutation> mutations, Collection<MigrationListener> inhibitedListeners) throws ConfigurationException
+    {
+        mergeSchema(mutations, inhibitedListeners);
         Schema.instance.updateVersionAndAnnounce();
     }
 
     public static synchronized void mergeSchema(Collection<Mutation> mutations)
+    {
+        mergeSchema(mutations, Collections.EMPTY_LIST);
+    }
+
+    public static synchronized void mergeSchema(Collection<Mutation> mutations, Collection<MigrationListener> inhibitedListeners)
     {
         // only compare the keyspaces affected by this set of schema mutations
         Set<String> affectedKeyspaces =
@@ -1419,13 +1430,13 @@ public final class SchemaKeyspace
         // fetch the new state of schema from schema tables (not applied to Schema.instance yet)
         Keyspaces after = fetchKeyspacesOnly(affectedKeyspaces);
 
-        mergeSchema(before, after);
+        mergeSchema(before, after, inhibitedListeners);
     }
 
-    private static synchronized void mergeSchema(Keyspaces before, Keyspaces after)
+    private static synchronized void mergeSchema(Keyspaces before, Keyspaces after, Collection<MigrationListener> inhibitedListeners)
     {
     	// notify begin of schema update transaction.
-    	MigrationManager.instance.notifyBeginTransaction();
+    	MigrationManager.instance.notifyBeginTransaction(inhibitedListeners);
 
         MapDifference<String, KeyspaceMetadata> keyspacesDiff = before.diff(after);
 
@@ -1456,7 +1467,7 @@ public final class SchemaKeyspace
             updateKeyspace(diff.getKey(), diff.getValue().leftValue(), diff.getValue().rightValue());
 
         // notify begin of schema update transaction.
-    	MigrationManager.instance.notifyEndTransaction();
+    	MigrationManager.instance.notifyEndTransaction(inhibitedListeners);
     }
 
     private static void updateKeyspace(String keyspaceName, KeyspaceMetadata keyspaceBefore, KeyspaceMetadata keyspaceAfter)

@@ -200,16 +200,18 @@ public class MigrationManager
         }
     }
 
-    public void notifyBeginTransaction()
+    public void notifyBeginTransaction(Collection<MigrationListener> inhibitedListeners)
     {
         for (MigrationListener listener : listeners)
-            listener.onBeginTransaction();
+            if (!inhibitedListeners.contains(listener))
+                listener.onBeginTransaction();
     }
 
-    public void notifyEndTransaction()
+    public void notifyEndTransaction(Collection<MigrationListener> inhibitedListeners)
     {
         for (MigrationListener listener : listeners)
-            listener.onEndTransaction();
+            if (!inhibitedListeners.contains(listener))
+                listener.onEndTransaction();
     }
 
     public void notifyCreateKeyspace(KeyspaceMetadata ksm)
@@ -596,9 +598,9 @@ public class MigrationManager
         List<Mutation> mutations = Collections.singletonList(schema.build());
 
         if (announceLocally)
-            SchemaKeyspace.mergeSchema(mutations);
+            SchemaKeyspace.mergeSchema(mutations, Collections.EMPTY_LIST);
         else
-            FBUtilities.waitOnFuture(announce(mutations));
+            FBUtilities.waitOnFuture(announce(mutations, (Collection<MigrationListener>) Collections.EMPTY_LIST));
     }
 
     private static void pushSchemaMutation(InetAddress endpoint, Collection<Mutation> schema)
@@ -610,13 +612,13 @@ public class MigrationManager
     }
 
     // Returns a future on the local application of the schema
-    public static Future<?> announce(final Collection<Mutation> schema)
+    public static Future<?> announce(final Collection<Mutation> schema, Collection<MigrationListener> inhibitedListeners)
     {
         Future<?> f = StageManager.getStage(Stage.MIGRATION).submit(new WrappedRunnable()
         {
             protected void runMayThrow() throws ConfigurationException
             {
-                SchemaKeyspace.mergeSchemaAndAnnounceVersion(schema);
+                SchemaKeyspace.mergeSchemaAndAnnounceVersion(schema, inhibitedListeners);
             }
         });
 
