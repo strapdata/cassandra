@@ -326,11 +326,14 @@ public class ColumnFamilyStoreCQLHelper
         builder.append("\n\tAND cdc = ").append(tableParams.cdc);
 
         builder.append("\n\tAND extensions = { ");
+        int  i = 0;
         for (Map.Entry<String, ByteBuffer> entry : tableParams.extensions.entrySet())
         {
+            if (i > 0)
+                builder.append(", ");
             builder.append(singleQuote(entry.getKey()));
-            builder.append(": ");
-            builder.append("0x").append(ByteBufferUtil.bytesToHex(entry.getValue()));
+            builder.append(": '").append(ByteBufferUtil.bytesToHex(entry.getValue())).append("'");
+            i++;
         }
         builder.append(" }");
         return builder.toString();
