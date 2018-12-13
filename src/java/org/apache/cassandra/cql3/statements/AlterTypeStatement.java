@@ -146,6 +146,7 @@ public abstract class AlterTypeStatement extends SchemaAlteringStatement
             if (upd != null)
             	SchemaKeyspace.addTypeToSchemaMutation((UserType) upd, builder);
         }
+        mutations.add(builder.build());
         events.add(new Event.SchemaChange(Event.SchemaChange.Change.UPDATED, Event.SchemaChange.Target.TYPE, keyspace(), name.getStringTypeName()));
         return updated;
     }
