@@ -213,7 +213,7 @@ public class StreamReceiveTask extends StreamTask
                         logger.debug("[Stream #{}] Received {} sstables from {} ({})", task.session.planId(), readers.size(), task.session.peer, readers);
                         // add sstables and build secondary indexes
                         cfs.addSSTables(readers);
-                        cfs.indexManager.buildAllIndexesBlocking(readers);
+                        //cfs.indexManager.buildAllIndexesBlocking(readers); // managed through INotification
 
                         //invalidate row and counter cache
                         if (cfs.isRowCacheEnabled() || cfs.metadata.isCounter())

@@ -894,6 +894,10 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             setMode(Mode.JOINING, "waiting for ring information", true);
             waitForSchema(delay);
             setMode(Mode.JOINING, "schema complete, ready to bootstrap", true);
+
+            if (this.daemon != null)
+                this.daemon.beforeBootstrap();
+
             setMode(Mode.JOINING, "waiting for pending range calculation", true);
             PendingRangeCalculatorService.instance.blockUntilFinished();
             setMode(Mode.JOINING, "calculation complete, ready to bootstrap", true);
@@ -1494,9 +1498,6 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
 
         // Force disk boundary invalidation now that local tokens are set
         invalidateDiskBoundaries();
-
-        if (this.daemon != null)
-            this.daemon.beforeBootstrap();
 
         setMode(Mode.JOINING, "Starting to bootstrap...", true);
 
