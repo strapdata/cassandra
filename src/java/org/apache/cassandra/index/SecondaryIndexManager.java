@@ -440,14 +440,9 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
      * @param indexes
      * @param isFullRebuild
      */
-    private Future<?> buildIndex(int indexThreads, Collection<SSTableReader> sstables, Index index, boolean isFullRebuild)
+    private SettableFuture<?> buildIndex(int indexThreads, Collection<SSTableReader> sstables, Index index, boolean isFullRebuild)
     {
     	Set<Index> indexSingleton = Collections.singleton(index);
-
-    	// Mark all indexes as building: this step must happen first, because if any index can't be marked, the whole
-        // process needs to abort
-        markIndexesBuilding(indexSingleton, isFullRebuild, false);
-
         Index.IndexBuildingSupport buildingSupport = index.getBuildTaskSupport();
         SecondaryIndexBuilder builder = buildingSupport.getIndexBuildTask(indexThreads, baseCfs, indexSingleton, sstables);
         final SettableFuture build = SettableFuture.create();
@@ -456,14 +451,13 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
             @Override
             public void onFailure(Throwable t)
             {
-                logAndMarkIndexesFailed(indexSingleton, t);
+                logger.warn("Index build of " + getIndexNames(indexSingleton) + " failed:", t);
                 build.setException(t);
             }
 
             @Override
             public void onSuccess(Object o)
             {
-            	markIndexBuilt(index, isFullRebuild);
                 logger.info("Index build of {} completed", getIndexNames(indexSingleton));
                 build.set(o);
             }
