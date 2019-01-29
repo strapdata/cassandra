@@ -971,6 +971,21 @@
 	    <antcall target="_write-poms" />
 	</target>
 
+    <target name="stress-jar"
+            depends="stress-build"
+            description="Assemble stress-tools jar without running tests">
+
+        <manifest file="${stress.manifest}">
+            <attribute name="Built-By" value="Pavel Yaskevich"/>
+            <attribute name="Main-Class" value="org.apache.cassandra.stress.Stress"/>
+        </manifest>
+        <mkdir dir="${stress.build.classes}/META-INF" />
+        <mkdir dir="${build.dir}/tools/lib/" />
+        <jar destfile="${build.dir}/tools/lib/stress.jar" manifest="${stress.manifest}">
+            <fileset dir="${stress.build.classes}"/>
+        </jar>
+    </target>
+
     <!--
         The jar target makes cassandra.jar output.
     -->
