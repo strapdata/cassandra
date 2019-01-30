@@ -71,6 +71,7 @@
 
     <property name="source.version" value="1.8"/>
     <property name="target.version" value="1.8"/>
+    <property name="javac.executable" value="${env.JAVA_HOME}/bin/javac"/>
 
     <condition property="version" value="${base.version}">
       <isset property="release"/>
@@ -853,14 +854,14 @@
             name="build-project">
         <echo message="${ant.project.name}: ${ant.file}"/>
         <!-- Order matters! -->
-        <javac fork="true"
+        <javac executable="${javac.executable}" fork="true"
                debug="true" debuglevel="${debuglevel}" encoding="utf-8"
                destdir="${build.classes.thrift}" includeantruntime="false" source="${source.version}" target="${target.version}"
                memorymaximumsize="512M">
             <src path="${interface.thrift.dir}/gen-java"/>
             <classpath refid="cassandra.classpath"/>
         </javac>
-        <javac fork="true"
+        <javac executable="${javac.executable}" fork="true"
                debug="true" debuglevel="${debuglevel}" encoding="utf-8"
                destdir="${build.classes.main}" includeantruntime="false" source="${source.version}" target="${target.version}"
                memorymaximumsize="512M">
@@ -889,7 +890,7 @@
     </path>
 
     <target name="stress-build-test" depends="stress-build" description="Compile stress tests">
-        <javac debug="true" debuglevel="${debuglevel}" destdir="${stress.test.classes}"
+        <javac executable="${javac.executable}" debug="true" debuglevel="${debuglevel}" destdir="${stress.test.classes}"
                includeantruntime="false"
                source="${source.version}"
                target="${target.version}"
@@ -904,7 +905,7 @@
 
     <target name="stress-build" depends="build" description="build stress tool">
     	<mkdir dir="${stress.build.classes}" />
-        <javac compiler="modern" debug="true" debuglevel="${debuglevel}" encoding="utf-8" destdir="${stress.build.classes}" includeantruntime="true" source="${source.version}" target="${target.version}">
+        <javac executable="${javac.executable}" compiler="modern" debug="true" debuglevel="${debuglevel}" encoding="utf-8" destdir="${stress.build.classes}" includeantruntime="true" source="${source.version}" target="${target.version}">
             <src path="${stress.build.src}" />
             <classpath>
                 <path refid="cassandra.classes" />
@@ -1242,8 +1243,8 @@
   <!-- <taskdef name="junit" classname="org.krummas.junit.JStackJUnitTask" classpath="lib/jstackjunit-0.0.1.jar"/> -->
 
   <target name="build-test" depends="build" description="Compile test classes">
-    <javac
-     compiler="modern"
+    <javac executable="${javac.executable}"
+      compiler="modern"
      debug="true"
      debuglevel="${debuglevel}"
      destdir="${test.classes}"
