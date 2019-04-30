@@ -421,8 +421,8 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
         }
     }
 
-    // For convenience, may be called directly from Index impls
-    public Future<?> buildIndex(Index index)
+    // Blocking build, for convenience, may be called directly from Index impls
+    public SettableFuture<?> buildIndex(Index index)
     {
         if (index.shouldBuildBlocking())
         {
@@ -433,6 +433,30 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
             }
         }
         return null;
+    }
+
+    // Async build, for convenience, may be called directly from Index impls
+    public SettableFuture<?> buildIndexAsync(Index index)
+    {
+        markIndexesBuilding(ImmutableSet.of(index), true, false);
+        final SettableFuture initialization = SettableFuture.create();
+        Futures.addCallback(buildIndex(index), new FutureCallback()
+        {
+            @Override
+            public void onFailure(Throwable t)
+            {
+                logAndMarkIndexesFailed(Collections.singleton(index), t);
+                initialization.setException(t);
+            }
+
+            @Override
+            public void onSuccess(Object o)
+            {
+                markIndexBuilt(index, true);
+                initialization.set(o);
+            }
+        }, MoreExecutors.directExecutor());
+        return initialization;
     }
 
     /**
