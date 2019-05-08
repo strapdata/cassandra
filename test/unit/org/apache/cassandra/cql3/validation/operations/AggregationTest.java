@@ -1879,6 +1879,7 @@ public class AggregationTest extends CQLTester
         }
     }
 
+
     private static void configureLogbackScanPeriod(long millis)
     {
         Logger l = LoggerFactory.getLogger(AggregationTest.class);
@@ -1899,7 +1900,9 @@ public class AggregationTest extends CQLTester
                 break;
             }
         }
-        assertTrue("ReconfigureOnChangeFilter not in logback's turbo-filter list - do that by adding scan=\"true\" to logback-test.xml's configuration element", done);
+        // Disabled since logback 1.1.8 does not use any more a ReconfigureOnChangeFilter but ReconfigureOnChangeTask
+        // because scanning for conf change was too costly, see https://stackoverflow.com/questions/28511134/logback-scan-not-working
+        //assertTrue("ReconfigureOnChangeFilter not in logback's turbo-filter list - do that by adding scan=\"true\" to logback-test.xml's configuration element", done);
     }
 
     @Test
