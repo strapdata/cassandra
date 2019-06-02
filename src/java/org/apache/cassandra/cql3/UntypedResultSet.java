@@ -21,6 +21,7 @@ package org.apache.cassandra.cql3;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.math.BigDecimal;
 
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.utils.AbstractIterator;
@@ -317,10 +318,15 @@ public abstract class UntypedResultSet implements Iterable<UntypedResultSet.Row>
         {
             return LongType.instance.compose(data.get(column));
         }
-        
+
         public float getFloat(String column)
         {
             return FloatType.instance.compose(data.get(column));
+        }
+
+        public BigDecimal getDecimal(String column)
+        {
+            return DecimalType.instance.compose(data.get(column));
         }
 
         public <T> Set<T> getSet(String column, AbstractType<T> type)
