@@ -140,7 +140,9 @@ public class CassandraDaemon
 
         try
         {
-            jmxServer = JMXServerUtils.createJMXServer(Integer.parseInt(jmxPort), localOnly);
+            jmxServer = System.getProperty("cassandra.jmxmp") != null ?
+            		JMXServerUtils.createJMXMPServer(Integer.parseInt(jmxPort)) :
+            		JMXServerUtils.createJMXServer(Integer.parseInt(jmxPort), localOnly);
             if (jmxServer == null)
                 return;
         }

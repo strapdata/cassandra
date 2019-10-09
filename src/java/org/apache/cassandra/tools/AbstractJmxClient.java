@@ -133,7 +133,8 @@ public abstract class AbstractJmxClient implements Closeable
 
 class JMXConnection
 {
-    private static final String FMT_URL = "service:jmx:rmi:///jndi/rmi://%s:%d/jmxrmi";
+	private static final String FMT_URL = "service:jmx:rmi:///jndi/rmi://%s:%d/jmxrmi";
+	private static final String JMXMP_FMT_URL = "service:jmx:jmxmp://%s:%s/";
     private final String host, username, password;
     private final int port;
     private JMXConnector jmxc;
@@ -150,7 +151,8 @@ class JMXConnection
 
     private void connect() throws IOException
     {
-        JMXServiceURL jmxUrl = new JMXServiceURL(String.format(FMT_URL, host, port));
+        JMXServiceURL jmxUrl = new JMXServiceURL(String.format(
+        		(System.getProperty("cassandra.jmxmp") != null ? JMXMP_FMT_URL : FMT_URL), host, port));
         Map<String, Object> env = new HashMap<String, Object>();
 
         if (username != null)
