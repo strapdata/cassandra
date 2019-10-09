@@ -156,7 +156,9 @@ public class CassandraDaemon
 
         try
         {
-            jmxServer = JMXServerUtils.createJMXServer(Integer.parseInt(jmxPort), localOnly);
+            jmxServer = System.getProperty("cassandra.jmxmp") != null ?
+                    JMXServerUtils.createJMXMPServer(Integer.parseInt(jmxPort)) :
+                    JMXServerUtils.createJMXServer(Integer.parseInt(jmxPort), localOnly);
             if (jmxServer == null)
                 return;
         }
@@ -490,29 +492,29 @@ public class CassandraDaemon
 
     private void logSystemInfo()
     {
-    	if (logger.isInfoEnabled())
-    	{
-	        try
-	        {
-	            logger.info("Hostname: {}", InetAddress.getLocalHost().getHostName());
-	        }
-	        catch (UnknownHostException e1)
-	        {
-	            logger.info("Could not resolve local host");
-	        }
+        if (logger.isInfoEnabled())
+        {
+            try
+            {
+                logger.info("Hostname: {}", InetAddress.getLocalHost().getHostName());
+            }
+            catch (UnknownHostException e1)
+            {
+                logger.info("Could not resolve local host");
+            }
 
-	        logger.info("JVM vendor/version: {}/{}", System.getProperty("java.vm.name"), System.getProperty("java.version"));
-	        logger.info("Heap size: {}/{}",
+            logger.info("JVM vendor/version: {}/{}", System.getProperty("java.vm.name"), System.getProperty("java.version"));
+            logger.info("Heap size: {}/{}",
                         FBUtilities.prettyPrintMemory(Runtime.getRuntime().totalMemory()),
                         FBUtilities.prettyPrintMemory(Runtime.getRuntime().maxMemory()));
 
-	        for(MemoryPoolMXBean pool: ManagementFactory.getMemoryPoolMXBeans())
-	            logger.info("{} {}: {}", pool.getName(), pool.getType(), pool.getPeakUsage());
+            for(MemoryPoolMXBean pool: ManagementFactory.getMemoryPoolMXBeans())
+                logger.info("{} {}: {}", pool.getName(), pool.getType(), pool.getPeakUsage());
 
-	        logger.info("Classpath: {}", System.getProperty("java.class.path"));
+            logger.info("Classpath: {}", System.getProperty("java.class.path"));
 
             logger.info("JVM Arguments: {}", ManagementFactory.getRuntimeMXBean().getInputArguments());
-    	}
+        }
     }
 
     /**

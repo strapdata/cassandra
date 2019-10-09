@@ -458,6 +458,7 @@
           <!-- when updating assertj, make sure to also update the corresponding junit-bom dependency -->
           <dependency groupId="org.assertj" artifactId="assertj-core" version="3.15.0" scope="test"/>
           <dependency groupId="org.hamcrest" artifactId="hamcrest" version="2.2" scope="test"/>
+          <dependency groupId="org.glassfish.main.external" artifactId="jmxremote_optional-repackaged" version="5.0" />
         </dependencyManagement>
         <developer id="adelapena" name="Andres de la Peña"/>
         <developer id="alakshman" name="Avinash Lakshman"/>
@@ -626,6 +627,7 @@
         <dependency groupId="org.jboss.byteman" artifactId="byteman" scope="provided"/>
         <dependency groupId="org.jboss.byteman" artifactId="byteman-submit" scope="provided"/>
         <dependency groupId="org.jboss.byteman" artifactId="byteman-bmunit" scope="provided"/>
+        <dependency groupId="org.glassfish.main.external" artifactId="jmxremote_optional-repackaged" />
       </artifact:pom>
       <artifact:pom id="thrift-pom"
                     artifactId="cassandra-thrift"
