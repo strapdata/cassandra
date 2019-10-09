@@ -457,6 +457,7 @@
           <dependency groupId="com.github.ben-manes.caffeine" artifactId="caffeine" version="2.2.6" />
           <dependency groupId="org.jctools" artifactId="jctools-core" version="1.2.1"/>
           <dependency groupId="org.ow2.asm" artifactId="asm" version="5.0.4" />
+          <dependency groupId="org.glassfish.main.external" artifactId="jmxremote_optional-repackaged" version="5.0" />
         </dependencyManagement>
         <developer id="adelapena" name="Andres de la Peña"/>
         <developer id="alakshman" name="Avinash Lakshman"/>
@@ -648,6 +649,7 @@
         <dependency groupId="org.jctools" artifactId="jctools-core"/>
         <dependency groupId="org.ow2.asm" artifactId="asm" />
         <dependency groupId="io.airlift" artifactId="airline" />
+        <dependency groupId="org.glassfish.main.external" artifactId="jmxremote_optional-repackaged" />
       </artifact:pom>
       <artifact:pom id="thrift-pom"
                     artifactId="cassandra-thrift"
