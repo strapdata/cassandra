@@ -94,6 +94,9 @@ do
     -D*)
       JVM_ARGS="$JVM_ARGS $1"
       ;;
+    --jmxmp)
+      JVM_ARGS="$JVM_ARGS -Dcassandra.jmxmp"
+      ;;
     *)
       ARGS="$ARGS $1"
       ;;
