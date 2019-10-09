@@ -28,6 +28,7 @@ import java.net.UnknownHostException;
 import java.rmi.ConnectException;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMISocketFactory;
+import java.security.Security;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,6 +54,7 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
+import javax.security.auth.callback.*;
 
 import org.apache.cassandra.batchlog.BatchlogManager;
 import org.apache.cassandra.batchlog.BatchlogManagerMBean;
@@ -101,7 +103,9 @@ import org.apache.cassandra.tools.nodetool.GetTimeout;
  */
 public class NodeProbe implements AutoCloseable
 {
-    private static final String fmtUrl = "service:jmx:rmi:///jndi/rmi://[%s]:%d/jmxrmi";
+    private static final String fmtUrl = System.getProperty("cassandra.jmxmp") != null ?
+            "service:jmx:jmxmp://%s:%s/" :
+            "service:jmx:rmi:///jndi/rmi://[%s]:%d/jmxrmi";
     private static final String ssObjName = "org.apache.cassandra.db:type=StorageService";
     private static final int defaultPort = 7199;
     final String host;
@@ -188,13 +192,26 @@ public class NodeProbe implements AutoCloseable
     {
         JMXServiceURL jmxUrl = new JMXServiceURL(String.format(fmtUrl, host, port));
         Map<String,Object> env = new HashMap<String,Object>();
-        if (username != null)
-        {
-            String[] creds = { username, password };
-            env.put(JMXConnector.CREDENTIALS, creds);
-        }
 
-        env.put("com.sun.jndi.rmi.factory.socket", getRMIClientSocketFactory());
+        if (System.getProperty("cassandra.jmxmp") != null)
+        {
+            if (Boolean.parseBoolean(System.getProperty("ssl.enable")))
+            {
+                Security.addProvider(new com.sun.security.sasl.Provider());
+                env.put("jmx.remote.profiles", "TLS SASL/PLAIN");
+                env.put("jmx.remote.sasl.callback.handler", new UserPasswordCallbackHandler(username, password));
+            }
+        }
+        else
+        {
+            if (username != null)
+            {
+                String[] creds = { username, password };
+                env.put(JMXConnector.CREDENTIALS, creds);
+            }
+
+            env.put("com.sun.jndi.rmi.factory.socket", getRMIClientSocketFactory());
+        }
 
         jmxc = JMXConnectorFactory.connect(jmxUrl, env);
         mbeanServerConn = jmxc.getMBeanServerConnection();
@@ -234,6 +251,50 @@ public class NodeProbe implements AutoCloseable
                 ManagementFactory.MEMORY_MXBEAN_NAME, MemoryMXBean.class);
         runtimeProxy = ManagementFactory.newPlatformMXBeanProxy(
                 mbeanServerConn, ManagementFactory.RUNTIME_MXBEAN_NAME, RuntimeMXBean.class);
+    }
+
+    static class UserPasswordCallbackHandler implements javax.security.auth.callback.CallbackHandler
+    {
+        private String username;
+        private char[] password;
+
+        public UserPasswordCallbackHandler(String user, String password)
+        {
+            this.username = user;
+            this.password = (password == null) ? null : password.toCharArray();
+        }
+
+        public void handle(javax.security.auth.callback.Callback[] callbacks)
+                throws IOException, javax.security.auth.callback.UnsupportedCallbackException
+        {
+            for (int i = 0; i < callbacks.length; i++) {
+                if (callbacks[i] instanceof PasswordCallback)
+                {
+                    PasswordCallback pcb = (PasswordCallback) callbacks[i];
+                    pcb.setPassword(password);
+                } else if (callbacks[i] instanceof javax.security.auth.callback.NameCallback)
+                {
+                    NameCallback ncb = (NameCallback) callbacks[i];
+                    ncb.setName(username);
+                } else {
+                    throw new UnsupportedCallbackException(callbacks[i]);
+                }
+            }
+        }
+
+        private void clearPassword()
+        {
+            if (password != null) {
+                for (int i = 0; i < password.length; i++)
+                    password[i] = 0;
+                password = null;
+            }
+        }
+
+        protected void finalize()
+        {
+            clearPassword();
+        }
     }
 
     private RMIClientSocketFactory getRMIClientSocketFactory()

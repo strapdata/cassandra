@@ -33,6 +33,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMIServerSocketFactory;
+import java.security.Security;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,6 +41,7 @@ import java.util.stream.Collectors;
 import javax.management.remote.*;
 import javax.management.remote.rmi.RMIConnectorServer;
 import javax.management.remote.rmi.RMIJRMPServerImpl;
+import javax.net.ssl.SSLSocketFactory;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
 import javax.rmi.ssl.SslRMIServerSocketFactory;
 import javax.security.auth.Subject;
@@ -51,6 +53,8 @@ import org.slf4j.LoggerFactory;
 
 import com.sun.jmx.remote.security.JMXPluggableAuthenticator;
 import org.apache.cassandra.auth.jmx.AuthenticationProxy;
+import org.apache.cassandra.security.PlainSaslServer;
+import org.apache.cassandra.security.PlainSaslServer.SaslPlainProvider;
 
 public class JMXServerUtils
 {
@@ -131,11 +135,64 @@ public class JMXServerUtils
         return jmxServer;
     }
 
+    /**
+     * Creates a server programmatically. This allows us to set parameters which normally are
+     * inaccessable.
+     */
+    @SuppressWarnings("resource")
+    public static JMXConnectorServer createJMXMPServer(int port)
+    throws IOException
+    {
+        Map<String, Object> env = new HashMap<>();
+
+        // Configure authn, using a JMXAuthenticator which either wraps a set log LoginModules configured
+        // via a JAAS configuration entry, or one which delegates to the standard file based authenticator.
+        // Authn is disabled if com.sun.management.jmxremote.authenticate=false
+        env.putAll(configureJmxAuthentication());
+
+        // Configure authz - if a custom proxy class is specified an instance will be returned.
+        // If not, but a location for the standard access file is set in system properties, the
+        // return value is null, and an entry is added to the env map detailing that location
+        // If neither method is specified, no access control is applied
+        MBeanServerForwarder authzProxy = configureJmxAuthorization(env);
+
+        // Mark the JMX server as a permanently exported object. This allows the JVM to exit with the
+        // server running and also exempts it from the distributed GC scheduler which otherwise would
+        // potentially attempt a full GC every `sun.rmi.dgc.server.gcInterval` millis (default is 3600000ms)
+        // For more background see:
+        //   - CASSANDRA-2967
+        //   - https://www.jclarity.com/2015/01/27/rmi-system-gc-unplugged/
+        //   - https://bugs.openjdk.java.net/browse/JDK-6760712
+        env.put("jmx.remote.x.daemon", "true");
+
+        if (Boolean.getBoolean("com.sun.management.jmxremote.ssl"))
+        {
+            Security.addProvider(new PlainSaslServer.SaslPlainProvider());
+            env.put("jmx.remote.profiles", "TLS SASL/PLAIN");
+        }
+
+        JMXServiceURL url = new JMXServiceURL("jmxmp", null, port);
+        JMXConnectorServer jmxServer = JMXConnectorServerFactory.newJMXConnectorServer(url, env, ManagementFactory.getPlatformMBeanServer());
+
+        // If a custom authz proxy was created, attach it to the server now.
+        if (authzProxy != null)
+            jmxServer.setMBeanServerForwarder(authzProxy);
+        jmxServer.start();
+
+        logger.info("JMXMP started server="+url.toString());
+        logger.debug("JMXMP env="+env);
+        return jmxServer;
+    }
+
     private static Map<String, Object> configureJmxAuthentication()
     {
         Map<String, Object> env = new HashMap<>();
         if (!Boolean.getBoolean("com.sun.management.jmxremote.authenticate"))
             return env;
+
+        String authenticatorKey = System.getProperty("cassandra.jmxmp") == null ?
+                    JMXConnectorServer.AUTHENTICATOR :
+                    PlainSaslServer.SASL_JMX_AUTHENTICATOR;
 
         // If authentication is enabled, initialize the appropriate JMXAuthenticator
         // and stash it in the environment settings.
@@ -151,7 +208,7 @@ public class JMXServerUtils
         String configEntry = System.getProperty("cassandra.jmx.remote.login.config");
         if (configEntry != null)
         {
-            env.put(JMXConnectorServer.AUTHENTICATOR, new AuthenticationProxy(configEntry));
+            env.put(authenticatorKey, new AuthenticationProxy(configEntry));
         }
         else
         {
@@ -162,7 +219,7 @@ public class JMXServerUtils
                 env.put("jmx.remote.x.password.file", passwordFile);
             }
 
-            env.put(JMXConnectorServer.AUTHENTICATOR, new JMXPluggableAuthenticatorWrapper(env));
+            env.put(authenticatorKey, new JMXPluggableAuthenticatorWrapper(env));
         }
 
         return env;
@@ -217,12 +274,18 @@ public class JMXServerUtils
                 ciphers = StringUtils.split(cipherList, ',');
             }
 
-            SslRMIClientSocketFactory clientFactory = new SslRMIClientSocketFactory();
-            SslRMIServerSocketFactory serverFactory = new SslRMIServerSocketFactory(ciphers, protocols, requireClientAuth);
-            env.put(RMIConnectorServer.RMI_SERVER_SOCKET_FACTORY_ATTRIBUTE, serverFactory);
-            env.put(RMIConnectorServer.RMI_CLIENT_SOCKET_FACTORY_ATTRIBUTE, clientFactory);
-            env.put("com.sun.jndi.rmi.factory.socket", clientFactory);
-            logJmxSslConfig(serverFactory);
+            if (System.getProperty("cassandra.jmxmp") != null) {
+                SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+                env.put("jmx.remote.tls.socket.factory", sslsocketfactory);
+                logger.debug("JMXMP over SSL, ciphersuites={}", Arrays.asList(sslsocketfactory.getDefaultCipherSuites()));
+            } else {
+                SslRMIClientSocketFactory clientFactory = new SslRMIClientSocketFactory();
+                SslRMIServerSocketFactory serverFactory = new SslRMIServerSocketFactory(ciphers, protocols, requireClientAuth);
+                env.put(RMIConnectorServer.RMI_SERVER_SOCKET_FACTORY_ATTRIBUTE, serverFactory);
+                env.put(RMIConnectorServer.RMI_CLIENT_SOCKET_FACTORY_ATTRIBUTE, clientFactory);
+                env.put("com.sun.jndi.rmi.factory.socket", clientFactory);
+                logJmxSslConfig(serverFactory);
+            }
         }
         else if (localOnly)
         {
