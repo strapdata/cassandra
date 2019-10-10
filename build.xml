@@ -2159,40 +2159,40 @@
             description="Publishes the artifacts to the strapdata repository">
 
         <!-- the parent -->
-        <deploy pomFile="${build.dir}/${final.name}-parent.pom"
+        <deploy-strapdata pomFile="${build.dir}/${final.name}-parent.pom"
                 file="${build.dir}/${final.name}-parent.pom"
                 packaging="pom"/>
 
         <!-- the distribution -->
-        <deploy pomFile="${build.dir}/${final.name}-dist.pom"
+        <deploy-strapdata pomFile="${build.dir}/${final.name}-dist.pom"
                 file="${build.dir}/${final.name}-dist.pom"
                 packaging="pom"/>
-        <deploy pomFile="${build.dir}/${final.name}-dist.pom"
+        <deploy-strapdata pomFile="${build.dir}/${final.name}-dist.pom"
                 file="${build.dir}/${final.name}-bin.tar.gz"
                 packaging="tar.gz"
                 classifier="bin"/>
-        <deploy pomFile="${build.dir}/${final.name}-dist.pom"
+        <deploy-strapdata pomFile="${build.dir}/${final.name}-dist.pom"
                 file="${build.dir}/${final.name}-src.tar.gz"
                 packaging="tar.gz"
                 classifier="src"/>
 
         <!-- the cassandra-thrift jar -->
-        <deploy pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
                 file="${build.dir}/${ant.project.name}-thrift-${version}.jar"/>
-        <deploy pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
                 file="${build.dir}/${ant.project.name}-thrift-${version}-sources.jar"
                 classifier="sources"/>
-        <deploy pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
                 file="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"
                 classifier="javadoc"/>
 
         <!-- the cassandra-all jar -->
-        <deploy pomFile="${build.dir}/${final.name}.pom"
+        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
                 file="${build.dir}/${final.name}.jar"/>
-        <deploy pomFile="${build.dir}/${final.name}.pom"
+        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
                 file="${build.dir}/${final.name}-sources.jar"
                 classifier="sources"/>
-        <deploy pomFile="${build.dir}/${final.name}.pom"
+        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
                 file="${build.dir}/${final.name}-javadoc.jar"
                 classifier="javadoc"/>
     </target>
