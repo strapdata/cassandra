@@ -350,7 +350,7 @@
       </macrodef>
 
         <macrodef name="deploy-strapdata">
-            <attribute name="pomFile"/>
+            <attribute name="pomFile" />
             <attribute name="file"/>
             <attribute name="classifier" default=""/>
             <attribute name="packaging" default="jar"/>
@@ -367,6 +367,28 @@
                     <arg value="-Dfile=@{file}" />
                     <arg value="-Dclassifier=@{classifier}" />
                     <arg value="-Dpackaging=@{packaging}" />
+                </artifact:mvn>
+            </sequential>
+        </macrodef>
+
+        <macrodef name="deploy-strapdata-pom">
+            <attribute name="file"/>
+            <attribute name="groupId"/>
+            <attribute name="artifactId"/>
+            <sequential>
+                <artifact:mvn mavenVersion="${maven.version}" fork="true" failonerror="true">
+                    <jvmarg value="-Xmx512m"/>
+                    <!-- TODO : do we have to sign our artefact ???-->
+                    <!-- <arg value="org.apache.maven.plugins:maven-gpg-plugin:1.4:sign-and-deploy-file" /> -->
+                    <arg value="org.apache.maven.plugins:maven-deploy-plugin:3.0.0-M1:deploy-file" />
+                    <arg value="-DretryFailedDeploymentCount=5" />
+                    <arg value="-Durl=${strapdata-repository-url}" />
+                    <arg value="-DrepositoryId=${strapdata-repository-id}" />
+                    <arg value="-Dfile=@{file}" />
+                    <arg value="-DgroupId=@{groupId}" />
+                    <arg value="-DartifactId=@{artifactId}" />
+                    <arg value="-Dversion=${version}" />
+                    <arg value="-Dpackaging=pom" />
                 </artifact:mvn>
             </sequential>
         </macrodef>
@@ -2160,14 +2182,18 @@
             description="Publishes the artifacts to the strapdata repository">
 
         <!-- the parent -->
-        <deploy-strapdata pomFile="${build.dir}/${final.name}-parent.pom"
+        <deploy-strapdata-pom
                 file="${build.dir}/${final.name}-parent.pom"
-                packaging="pom"/>
+                groupId="com.strapdata.cassandra"
+                artifactId="cassandra-parent"
+        />
 
         <!-- the distribution -->
-        <deploy-strapdata pomFile="${build.dir}/${final.name}-dist.pom"
+        <deploy-strapdata-pom
                 file="${build.dir}/${final.name}-dist.pom"
-                packaging="pom"/>
+                groupId="com.strapdata.cassandra"
+                artifactId="strapdata.cassandra"/>
+
         <deploy-strapdata pomFile="${build.dir}/${final.name}-dist.pom"
                 file="${build.dir}/${final.name}-bin.tar.gz"
                 packaging="tar.gz"
