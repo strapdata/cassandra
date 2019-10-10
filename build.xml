@@ -100,6 +100,10 @@
     <property name="maven-repository-url" value="https://repository.apache.org/content/repositories/snapshots"/>
     <property name="maven-repository-id" value="apache.snapshots.https"/>
 
+    <!-- set as system properties (-Dstrapdata-repository-id=...) -->
+    <property name="strapdata-repository-url" value=""/>
+    <property name="strapdata-repository-id" value=""/>
+
     <property name="test.timeout" value="240000" />
     <property name="test.long.timeout" value="600000" />
     <property name="test.burn.timeout" value="60000000" />
@@ -341,6 +345,28 @@
           </artifact:mvn>
         </sequential>
       </macrodef>
+
+        <macrodef name="deploy-strapdata">
+            <attribute name="pomFile"/>
+            <attribute name="file"/>
+            <attribute name="classifier" default=""/>
+            <attribute name="packaging" default="jar"/>
+            <sequential>
+                <artifact:mvn mavenVersion="${maven.version}" fork="true" failonerror="true">
+                    <jvmarg value="-Xmx512m"/>
+                    <!-- TODO : do we have to sign our artefact ???-->
+                    <!-- <arg value="org.apache.maven.plugins:maven-gpg-plugin:1.4:sign-and-deploy-file" /> -->
+                    <arg value="org.apache.maven.plugins:maven-deploy-plugin:3.0.0-M1:deploy-file" />
+                    <arg value="-DretryFailedDeploymentCount=5" />
+                    <arg value="-Durl=${strapdata-repository-url}" />
+                    <arg value="-DrepositoryId=${strapdata-repository-id}" />
+                    <arg value="-DpomFile=@{pomFile}" />
+                    <arg value="-Dfile=@{file}" />
+                    <arg value="-Dclassifier=@{classifier}" />
+                    <arg value="-Dpackaging=@{packaging}" />
+                </artifact:mvn>
+            </sequential>
+        </macrodef>
 
       <property name="maven-ant-tasks.initialized" value="true"/>
     </target>
@@ -2195,5 +2221,48 @@
             file="${build.dir}/${final.name}-javadoc.jar"
             classifier="javadoc"/>
   </target>
+
+    <target name="publish-strapdata"
+            depends="mvn-install"
+            description="Publishes the artifacts to the strapdata repository">
+
+        <!-- the parent -->
+        <deploy-strapdata pomFile="${build.dir}/${final.name}-parent.pom"
+                file="${build.dir}/${final.name}-parent.pom"
+                packaging="pom"/>
+
+        <!-- the distribution -->
+        <deploy-strapdata pomFile="${build.dir}/${final.name}-dist.pom"
+                file="${build.dir}/${final.name}-dist.pom"
+                packaging="pom"/>
+        <deploy-strapdata pomFile="${build.dir}/${final.name}-dist.pom"
+                file="${build.dir}/${final.name}-bin.tar.gz"
+                packaging="tar.gz"
+                classifier="bin"/>
+        <deploy-strapdata pomFile="${build.dir}/${final.name}-dist.pom"
+                file="${build.dir}/${final.name}-src.tar.gz"
+                packaging="tar.gz"
+                classifier="src"/>
+
+        <!-- the cassandra-thrift jar -->
+        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+                file="${build.dir}/${ant.project.name}-thrift-${version}.jar"/>
+        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+                file="${build.dir}/${ant.project.name}-thrift-${version}-sources.jar"
+                classifier="sources"/>
+        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+                file="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"
+                classifier="javadoc"/>
+
+        <!-- the cassandra-all jar -->
+        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
+                file="${build.dir}/${final.name}.jar"/>
+        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
+                file="${build.dir}/${final.name}-sources.jar"
+                classifier="sources"/>
+        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
+                file="${build.dir}/${final.name}-javadoc.jar"
+                classifier="javadoc"/>
+    </target>
 
 </project>
