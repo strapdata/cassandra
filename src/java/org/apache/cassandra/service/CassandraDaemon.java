@@ -25,6 +25,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -339,13 +340,28 @@ public class CassandraDaemon
         // Replay any CommitLogSegments found on disk
         try
         {
-            CommitLog.instance.recoverSegmentsOnDisk();
+            int replayed = CommitLog.instance.recoverSegmentsOnDisk();
+            logger.info("Replayed " + replayed + " commitlogs records");
         }
         catch (IOException e)
         {
             throw new RuntimeException(e);
         }
 
+        if (Boolean.getBoolean("cassandra.stop_after_commitlog_replayed"))
+        {
+            logger.info("Stop requested cassandra.stop_after_commitlog_replayed=true");
+            try
+            {
+                StorageService.instance.drain(true);
+            }
+            catch (IOException | InterruptedException | ExecutionException e)
+            {
+                logger.warn("drain failed:", e);
+            }
+            stop();
+            System.exit(0);
+        }
         // Re-populate token metadata after commit log recover (new peers might be loaded onto system keyspace #10293)
         StorageService.instance.populateTokenMetadata();
 
