@@ -25,7 +25,7 @@
     <property name="debuglevel" value="source,lines,vars"/>
 
     <!-- default version and SCM information -->
-    <property name="base.version" value="3.11.5.1"/>
+    <property name="base.version" value="3.11.5.2"/>
     <property name="scm.connection" value="scm:git:https://github.com/strapdata/cassandra.git"/>
     <property name="scm.developerConnection" value="scm:git:git@github.com:strapdata/cassandra.git"/>
     <property name="scm.url" value="https://github.com/strapdata/cassandra"/>
@@ -363,6 +363,30 @@
                     <arg value="-DpomFile=@{pomFile}" />
                     <arg value="-Dfile=@{file}" />
                     <arg value="-Dclassifier=@{classifier}" />
+                    <arg value="-Dpackaging=@{packaging}" />
+                </artifact:mvn>
+            </sequential>
+        </macrodef>
+
+        <macrodef name="deploy-strapdata-jar-full">
+            <attribute name="pomFile" />
+            <attribute name="file"/>
+            <attribute name="sources" default=""/>
+            <attribute name="javadoc" default=""/>
+            <attribute name="packaging" default="jar"/>
+            <sequential>
+                <artifact:mvn mavenVersion="${maven.version}" fork="true" failonerror="true">
+                    <jvmarg value="-Xmx512m"/>
+                    <!-- TODO : do we have to sign our artefact ???-->
+                    <!-- <arg value="org.apache.maven.plugins:maven-gpg-plugin:1.4:sign-and-deploy-file" /> -->
+                    <arg value="org.apache.maven.plugins:maven-deploy-plugin:3.0.0-M1:deploy-file" />
+                    <arg value="-DretryFailedDeploymentCount=5" />
+                    <arg value="-Durl=${strapdata-repository-url}" />
+                    <arg value="-DrepositoryId=${strapdata-repository-id}" />
+                    <arg value="-DpomFile=@{pomFile}" />
+                    <arg value="-Dfile=@{file}" />
+                    <arg value="-Dsources=@{sources}" />
+                    <arg value="-Djavadoc=@{javadoc}" />
                     <arg value="-Dpackaging=@{packaging}" />
                 </artifact:mvn>
             </sequential>
@@ -2271,24 +2295,18 @@
                 classifier="src"/>
 
         <!-- the cassandra-thrift jar -->
-        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
-                file="${build.dir}/${ant.project.name}-thrift-${version}.jar"/>
-        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
-                file="${build.dir}/${ant.project.name}-thrift-${version}-sources.jar"
-                classifier="sources"/>
-        <deploy-strapdata pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
-                file="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"
-                classifier="javadoc"/>
+        <deploy-strapdata-jar-full
+                pomFile="${build.dir}/${ant.project.name}-thrift-${version}.pom"
+                file="${build.dir}/${ant.project.name}-thrift-${version}.jar"
+                sources="${build.dir}/${ant.project.name}-thrift-${version}-sources.jar"
+                javadoc="${build.dir}/${ant.project.name}-thrift-${version}-javadoc.jar"/>
 
         <!-- the cassandra-all jar -->
-        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
-                file="${build.dir}/${final.name}.jar"/>
-        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
-                file="${build.dir}/${final.name}-sources.jar"
-                classifier="sources"/>
-        <deploy-strapdata pomFile="${build.dir}/${final.name}.pom"
-                file="${build.dir}/${final.name}-javadoc.jar"
-                classifier="javadoc"/>
+        <deploy-strapdata-jar-full
+                pomFile="${build.dir}/${final.name}.pom"
+                file="${build.dir}/${final.name}.jar"
+                sources="${build.dir}/${final.name}-sources.jar"
+                javadoc="${build.dir}/${final.name}-javadoc.jar"/>
     </target>
 
 </project>
