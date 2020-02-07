@@ -28,7 +28,8 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
-
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -37,15 +38,17 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
-import org.apache.cassandra.config.EncryptionOptions;
-import org.apache.cassandra.io.util.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Predicates;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.cassandra.config.EncryptionOptions;
+import org.apache.cassandra.io.util.FileUtils;
 
 /**
  * A Factory for providing and setting up Client and Server SSL wrapped
@@ -152,58 +155,75 @@ public final class SSLFactory
         socket.setEnabledCipherSuites(suites);
     }
 
+    // define a SSLContext cache to reduce CPU consumption
+    // SSLContext caching with hot reloading will be provided in Cassandra 4.0
+    // in C* 4.0, the default reload period is 10 minutes, use the same
+    private static final Cache<Integer, SSLContext> sslContexts = CacheBuilder
+                                                                  .newBuilder()
+                                                                  .expireAfterWrite(10, TimeUnit.MINUTES)
+                                                                  .build();
+
     @SuppressWarnings("resource")
     public static SSLContext createSSLContext(EncryptionOptions options, boolean buildTruststore) throws IOException
     {
-        FileInputStream tsf = null;
-        FileInputStream ksf = null;
-        SSLContext ctx;
-        try
+        Integer optHashKey = Objects.hash(options.protocol, options.truststore,
+                                      options.algorithm, options.store_type,
+                                      options.truststore_password, options.keystore,
+                                      options.keystore_password);
+
+        SSLContext ctx = sslContexts.getIfPresent(optHashKey);
+        if (ctx == null)
         {
-            ctx = SSLContext.getInstance(options.protocol);
-            TrustManager[] trustManagers = null;
-
-            if(buildTruststore)
+            FileInputStream tsf = null;
+            FileInputStream ksf = null;
+            try
             {
-                tsf = new FileInputStream(options.truststore);
-                TrustManagerFactory tmf = TrustManagerFactory.getInstance(options.algorithm);
-                KeyStore ts = KeyStore.getInstance(options.store_type);
-                ts.load(tsf, options.truststore_password.toCharArray());
-                tmf.init(ts);
-                trustManagers = tmf.getTrustManagers();
-            }
+                ctx = SSLContext.getInstance(options.protocol);
+                TrustManager[] trustManagers = null;
 
-            ksf = new FileInputStream(options.keystore);
-            KeyManagerFactory kmf = KeyManagerFactory.getInstance(options.algorithm);
-            KeyStore ks = KeyStore.getInstance(options.store_type);
-            ks.load(ksf, options.keystore_password.toCharArray());
-            if (!checkedExpiry)
-            {
-                for (Enumeration<String> aliases = ks.aliases(); aliases.hasMoreElements(); )
+                if (buildTruststore)
                 {
-                    String alias = aliases.nextElement();
-                    if (ks.getCertificate(alias).getType().equals("X.509"))
-                    {
-                        Date expires = ((X509Certificate) ks.getCertificate(alias)).getNotAfter();
-                        if (expires.before(new Date()))
-                            logger.warn("Certificate for {} expired on {}", alias, expires);
-                    }
+                    tsf = new FileInputStream(options.truststore);
+                    TrustManagerFactory tmf = TrustManagerFactory.getInstance(options.algorithm);
+                    KeyStore ts = KeyStore.getInstance(options.store_type);
+                    ts.load(tsf, options.truststore_password.toCharArray());
+                    tmf.init(ts);
+                    trustManagers = tmf.getTrustManagers();
                 }
-                checkedExpiry = true;
+
+                ksf = new FileInputStream(options.keystore);
+                KeyManagerFactory kmf = KeyManagerFactory.getInstance(options.algorithm);
+                KeyStore ks = KeyStore.getInstance(options.store_type);
+                ks.load(ksf, options.keystore_password.toCharArray());
+                if (!checkedExpiry)
+                {
+                    for (Enumeration<String> aliases = ks.aliases(); aliases.hasMoreElements(); )
+                    {
+                        String alias = aliases.nextElement();
+                        if (ks.getCertificate(alias).getType().equals("X.509"))
+                        {
+                            Date expires = ((X509Certificate) ks.getCertificate(alias)).getNotAfter();
+                            if (expires.before(new Date()))
+                                logger.warn("Certificate for {} expired on {}", alias, expires);
+                        }
+                    }
+                    checkedExpiry = true;
+                }
+                kmf.init(ks, options.keystore_password.toCharArray());
+
+                ctx.init(kmf.getKeyManagers(), trustManagers, null);
+
+                sslContexts.put(optHashKey, ctx);
             }
-            kmf.init(ks, options.keystore_password.toCharArray());
-
-            ctx.init(kmf.getKeyManagers(), trustManagers, null);
-
-        }
-        catch (Exception e)
-        {
-            throw new IOException("Error creating the initializing the SSL Context", e);
-        }
-        finally
-        {
-            FileUtils.closeQuietly(tsf);
-            FileUtils.closeQuietly(ksf);
+            catch (Exception e)
+            {
+                throw new IOException("Error creating the initializing the SSL Context", e);
+            }
+            finally
+            {
+                FileUtils.closeQuietly(tsf);
+                FileUtils.closeQuietly(ksf);
+            }
         }
         return ctx;
     }
