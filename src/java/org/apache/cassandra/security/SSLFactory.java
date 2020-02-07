@@ -28,7 +28,9 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
-
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -37,15 +39,17 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
-import org.apache.cassandra.config.EncryptionOptions;
-import org.apache.cassandra.io.util.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Predicates;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.cassandra.config.EncryptionOptions;
+import org.apache.cassandra.io.util.FileUtils;
 
 /**
  * A Factory for providing and setting up Client and Server SSL wrapped
@@ -55,6 +59,12 @@ public final class SSLFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(SSLFactory.class);
     private static boolean checkedExpiry = false;
+
+    /**
+     * Cached references of SSL Contexts
+     */
+    private static final ConcurrentHashMap<CacheKey, SSLContext> cachedSslContexts = new ConcurrentHashMap<>();
+
 
     public static SSLServerSocket getServerSocket(EncryptionOptions options, InetAddress address, int port) throws IOException
     {
@@ -155,15 +165,20 @@ public final class SSLFactory
     @SuppressWarnings("resource")
     public static SSLContext createSSLContext(EncryptionOptions options, boolean buildTruststore) throws IOException
     {
+        CacheKey key = new CacheKey(options, buildTruststore);
+        SSLContext ctx = cachedSslContexts.get(key);
+
+        if (ctx != null)
+            return ctx;
+
         FileInputStream tsf = null;
         FileInputStream ksf = null;
-        SSLContext ctx;
         try
         {
             ctx = SSLContext.getInstance(options.protocol);
             TrustManager[] trustManagers = null;
 
-            if(buildTruststore)
+            if (buildTruststore)
             {
                 tsf = new FileInputStream(options.truststore);
                 TrustManagerFactory tmf = TrustManagerFactory.getInstance(options.algorithm);
@@ -195,6 +210,8 @@ public final class SSLFactory
 
             ctx.init(kmf.getKeyManagers(), trustManagers, null);
 
+            SSLContext previous = cachedSslContexts.putIfAbsent(key, ctx);
+            return (previous == null) ? ctx : previous;
         }
         catch (Exception e)
         {
@@ -205,7 +222,6 @@ public final class SSLFactory
             FileUtils.closeQuietly(tsf);
             FileUtils.closeQuietly(ksf);
         }
-        return ctx;
     }
 
     public static String[] filterCipherSuites(String[] supported, String[] desired)
@@ -221,5 +237,34 @@ public final class SSLFactory
             logger.warn("Filtering out {} as it isn't supported by the socket", Iterables.toString(missing));
         }
         return ret;
+    }
+
+    static class CacheKey
+    {
+        private final EncryptionOptions encryptionOptions;
+        private final boolean buildTruststore;
+
+        public CacheKey(EncryptionOptions encryptionOptions, boolean buildTruststore)
+        {
+            this.encryptionOptions = encryptionOptions;
+            this.buildTruststore = buildTruststore;
+        }
+
+        public boolean equals(Object o)
+        {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            CacheKey cacheKey = (CacheKey) o;
+            return (buildTruststore == cacheKey.buildTruststore &&
+                    Objects.equals(encryptionOptions, cacheKey.encryptionOptions));
+        }
+
+        public int hashCode()
+        {
+            int result = 0;
+            result += 31 * encryptionOptions.hashCode();
+            result += 31 * Boolean.hashCode(buildTruststore);
+            return result;
+        }
     }
 }
