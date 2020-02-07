@@ -34,6 +34,7 @@ import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.service.GZipStringCompressor;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.commons.lang3.StringUtils;
 
@@ -187,6 +188,17 @@ public class VersionedValue implements Comparable<VersionedValue>
         public VersionedValue hostId(UUID hostId)
         {
             return new VersionedValue(hostId.toString());
+        }
+
+        public VersionedValue compressedString(String value) {
+            try
+            {
+                return new VersionedValue(GZipStringCompressor.compress(value));
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException(e);
+            }
         }
 
         public VersionedValue tokens(Collection<Token> tokens)
