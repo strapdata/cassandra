@@ -743,6 +743,11 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 states.add(Pair.create(ApplicationState.STATUS, valueFactory.hibernate(true)));
                 Gossiper.instance.addLocalApplicationStates(states);
             }
+
+            // sync schema even if we don't join the ring
+            waitForSchema(delay);
+            setMode(Mode.NORMAL, true);
+
             doAuthSetup(true);
             logger.info("Not joining ring as requested. Use JMX (StorageService->joinRing()) to initiate ring joining");
         }
