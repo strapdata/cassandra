@@ -209,10 +209,10 @@
     <!--
       JVM arguments for tests.
 
-      There is a race condition bug in java 11 (see CASSANDRA-15981) which causes a crash of the 
-      JVM; this race is between CMS and class unloading.  In java 8 we can cap the metaspace to 
-      make tests stable on low resource environments, but in java 11 we need to make it unlimited 
-      (don't define MaxMetaspaceSize) and disable class unloading in CMS outside of a 
+      There is a race condition bug in java 11 (see CASSANDRA-15981) which causes a crash of the
+      JVM; this race is between CMS and class unloading.  In java 8 we can cap the metaspace to
+      make tests stable on low resource environments, but in java 11 we need to make it unlimited
+      (don't define MaxMetaspaceSize) and disable class unloading in CMS outside of a
       stop-the-world pause.
     -->
     <resources id="_jvm8_test_arg_items">
@@ -1123,11 +1123,41 @@
 	    <antcall target="_write-poms" />
 	</target>
 
+    <condition property="javassist-maven.jar.exists">
+        <available file="${build.dir}/javassist-maven-plugin-2.7.jar" />
+    </condition>
+    <target name="javassit-maven-download" depends="init" unless="javassist-maven.jar.exists"
+            description="Fetch Maven Javassit from Maven Central Repositroy">
+        <echo>Downloading Javassist Maven Plugin...</echo>
+        <get src="https://oss.sonatype.org/content/repositories/releases/com/strapdata/javassist-maven-plugin/2.7/javassist-maven-plugin-2.7.jar"
+             dest="${build.dir}/javassist-maven-plugin-2.7.jar" usetimestamp="true" />
+        <get src="https://oss.sonatype.org/content/repositories/releases/com/strapdata/javassist-maven-plugin-core/2.7/javassist-maven-plugin-core-2.7.jar"
+             dest="${build.dir}/javassist-maven-plugin-core-2.7.jar" usetimestamp="true" />
+    </target>
+
+    <path id="javassist.classpath">
+        <pathelement location="${build.dir}/javassist-maven-plugin-2.7.jar" />
+        <pathelement location="${build.dir}/javassist-maven-plugin-core-2.7.jar" />
+    </path>
+
+    <target name="transform" description="Fix String default Locale with a javassit transformer" depends="javassit-maven-download, build">
+        <taskdef name="transform"
+                 classname="com.strapdata.ant.JavassitTransformerTask"
+                 classpathref="javassist.classpath" >
+            <classpath>
+                <pathelement location="${build.lib}/javassist-3.20.0-GA.jar"/>
+            </classpath>
+        </taskdef>
+        <transform transformer="com.strapdata.transformer.StringLocaleTransformer" directory="${build.classes.main}">
+            <fileset dir="${build.classes.main}" includes="**/*.class"/>
+        </transform>
+    </target>
+
     <!--
         The jar target makes cassandra.jar output.
     -->
     <target name="_main-jar"
-            depends="build"
+            depends="transform"
             description="Assemble Cassandra JAR files">
       <mkdir dir="${build.classes.main}/META-INF" />
       <copy file="LICENSE.txt"
