@@ -1209,9 +1209,9 @@ public class NodeProbe implements AutoCloseable
         return getCfsProxy(ksName, cfName).importNewSSTables(srcPaths, resetLevel, clearRepaired, verifySSTables, verifyTokens, invalidateCaches, extendedVerify);
     }
 
-    public void rebuildIndex(String ksName, String cfName, String... idxNames)
+    public void rebuildIndex(int indexThread, String ksName, String cfName, String... idxNames)
     {
-        ssProxy.rebuildSecondaryIndex(ksName, cfName, idxNames);
+        ssProxy.rebuildSecondaryIndex(indexThread, ksName, cfName, idxNames);
     }
 
     public String getGossipInfo(boolean withPort)

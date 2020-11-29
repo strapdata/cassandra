@@ -146,7 +146,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
      * The indexes that are available for querying.
      */
     private final Set<String> queryableIndexes = Sets.newConcurrentHashSet();
-    
+
     /**
      * The indexes that are available for writing.
      */
@@ -267,7 +267,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
      * Adds and builds a index
      *
      * @param indexDef the IndexMetadata describing the index
-     * @param isNewCF true if the index is added as part of a new table/columnfamily (i.e. loading a CF at startup), 
+     * @param isNewCF true if the index is added as part of a new table/columnfamily (i.e. loading a CF at startup),
      * false for all other cases (i.e. newly added index)
      */
     public synchronized Future<?> addIndex(IndexMetadata indexDef, boolean isNewCF)
@@ -288,7 +288,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     {
         return queryableIndexes.contains(index.getIndexMetadata().name);
     }
-    
+
     /**
      * Checks if the specified index is writable.
      *
@@ -471,13 +471,18 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
      *
      * If the index doesn't support ALL {@link Index.LoadType} it performs a recovery {@link Index#getRecoveryTaskSupport()}
      * instead of a build {@link Index#getBuildTaskSupport()}
-     * 
+     *
      * @param sstables      the SSTables to be (re)indexed
      * @param indexes       the indexes to be (re)built for the specifed SSTables
      * @param isFullRebuild True if this method is invoked as a full index rebuild, false otherwise
      */
     @SuppressWarnings({ "unchecked" })
     private void buildIndexesBlocking(Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
+    {
+        buildIndexesBlocking(1, sstables, indexes, isFullRebuild);
+    }
+
+    private void buildIndexesBlocking(int indexThreads, Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
     {
         if (indexes.isEmpty())
             return;
@@ -515,7 +520,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
             List<Future<?>> futures = new ArrayList<>(byType.size());
             byType.forEach((buildingSupport, groupedIndexes) ->
                            {
-                               SecondaryIndexBuilder builder = buildingSupport.getIndexBuildTask(baseCfs, groupedIndexes, sstables);
+                               SecondaryIndexBuilder builder = buildingSupport.getIndexBuildTask(indexThreads, baseCfs, groupedIndexes, sstables);
                                final SettableFuture build = SettableFuture.create();
                                Futures.addCallback(CompactionManager.instance.submitIndexBuild(builder), new FutureCallback()
                                {
@@ -592,6 +597,21 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
         }
     }
 
+    /**
+     * For convenience, may be called directly from Index impls
+     */
+    public void buildIndexBlocking(Index index)
+    {
+        if (index.shouldBuildBlocking())
+        {
+            try (ColumnFamilyStore.RefViewFragment viewFragment = baseCfs.selectAndReference(View.selectFunction(SSTableSet.CANONICAL)))
+            {
+                buildIndexesBlocking(viewFragment.sstables, Collections.singleton(index), true);
+                markIndexBuilt(index, true);
+            }
+        }
+    }
+
     private String getIndexNames(Set<Index> indexes)
     {
         List<String> indexNames = indexes.stream()
@@ -624,7 +644,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
      *
      * @param indexes the index to be marked as building
      * @param isFullRebuild {@code true} if this method is invoked as a full index rebuild, {@code false} otherwise
-     * @param isNewCF {@code true} if this method is invoked when initializing a new table/columnfamily (i.e. loading a CF at startup), 
+     * @param isNewCF {@code true} if this method is invoked when initializing a new table/columnfamily (i.e. loading a CF at startup),
      * {@code false} for all other cases (i.e. newly added index)
      */
     private synchronized void markIndexesBuilding(Set<Index> indexes, boolean isFullRebuild, boolean isNewCF)
@@ -675,7 +695,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
             if (writableIndexes.put(indexName, index) == null)
                 logger.info("Index [{}] became writable after successful build.", indexName);
         }
-        
+
         AtomicInteger counter = inProgressBuilds.get(indexName);
         if (counter != null)
         {
@@ -1190,7 +1210,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     {
         if (!hasIndexes())
             return UpdateTransaction.NO_OP;
-        
+
         ArrayList<Index.Indexer> idxrs = new ArrayList<>();
         for (Index i : writableIndexes.values())
         {
@@ -1198,7 +1218,7 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
             if (idxr != null)
                 idxrs.add(idxr);
         }
-        
+
         if (idxrs.size() == 0)
             return UpdateTransaction.NO_OP;
         else

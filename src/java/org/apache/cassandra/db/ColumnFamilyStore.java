@@ -738,10 +738,15 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
     public void rebuildSecondaryIndex(String idxName)
     {
-        rebuildSecondaryIndex(keyspace.getName(), metadata.name, idxName);
+        rebuildSecondaryIndex(1, keyspace.getName(), metadata.name, idxName);
     }
 
-    public static void rebuildSecondaryIndex(String ksName, String cfName, String... idxNames)
+    public void rebuildSecondaryIndex(int indexThreads, String idxName)
+    {
+        rebuildSecondaryIndex(indexThreads, keyspace.getName(), metadata.name, idxName);
+    }
+
+    public static void rebuildSecondaryIndex(int indexThreads, String ksName, String cfName, String... idxNames)
     {
         ColumnFamilyStore cfs = Keyspace.open(ksName).getColumnFamilyStore(cfName);
 
@@ -2212,7 +2217,6 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
                 SystemKeyspace.saveTruncationRecord(ColumnFamilyStore.this, truncatedAt, replayAfter);
                 logger.trace("cleaning out row cache");
                 invalidateCaches();
-
             }
         };
 
@@ -2321,7 +2325,7 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         {
             try
             {
-                cfs.getCompactionStrategyManager().resume();
+                    cfs.getCompactionStrategyManager().resume();
             }
             catch (Throwable t)
             {
@@ -2668,6 +2672,12 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
     public long trueSnapshotsSize()
     {
         return getDirectories().trueSnapshotsSize();
+    }
+
+    @VisibleForTesting
+    void resetFileIndexGenerator()
+    {
+        fileIndexGenerator.set(0);
     }
 
     /**
