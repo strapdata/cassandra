@@ -100,4 +100,12 @@ public final class FunctionName
             builder.appendQuotingIfNeeded(name);
         }
     }
+
+    /**
+     * @return Unique lowercase function name.
+     */
+    public String name()
+    {
+        return (keyspace == null || keyspace.equals("system") ? name : keyspace + "." + name).toLowerCase();
+    }
 }
