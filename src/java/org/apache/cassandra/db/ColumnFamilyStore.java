@@ -1796,6 +1796,8 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
         if (!SchemaConstants.isLocalSystemKeyspace(metadata.keyspace) && !SchemaConstants.isReplicatedSystemKeyspace(metadata.keyspace))
             writeSnapshotSchema(snapshotName);
 
+        this.indexManager.snapshotWithoutFlush(snapshotName);
+
         if (ephemeral)
             createEphemeralSnapshotMarkerFile(snapshotName);
         return snapshottedSSTables;

@@ -880,6 +880,17 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     }
 
     /**
+     * CASSANDRA-13269 Snapshot support for custom secondary indices.
+     * Performs a snapshot of all custom indices.
+     */
+    public void snapshotWithoutFlush(String snapshotName) {
+        executeAllBlocking(indexes.values()
+                                  .stream()
+                                  .filter(index -> !index.getBackingTable().isPresent()),
+                (index) -> index.getSnapshotWithoutFlushTask(snapshotName), null);
+    }
+
+    /**
      * @return all indexes which are marked as built and ready to use
      */
     public List<String> getBuiltIndexNames()
