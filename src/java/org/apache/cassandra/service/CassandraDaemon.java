@@ -261,7 +261,8 @@ public class CassandraDaemon
         // This should be the first write to SystemKeyspace (CASSANDRA-11742)
         SystemKeyspace.persistLocalMetadata();
 
-        Thread.setDefaultUncaughtExceptionHandler(CassandraDaemon::uncaughtException);
+        if (System.getProperty("tests.maven") == null)
+            Thread.setDefaultUncaughtExceptionHandler(CassandraDaemon::uncaughtException);
 
         SystemKeyspaceMigrator40.migrate();
 
