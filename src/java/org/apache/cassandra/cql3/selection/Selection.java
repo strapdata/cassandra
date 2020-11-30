@@ -19,6 +19,7 @@ package org.apache.cassandra.cql3.selection;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
@@ -289,6 +290,8 @@ public abstract class Selection
                           .toString();
     }
 
+    public abstract String toCQLString();
+
     private static List<ByteBuffer> rowToJson(List<ByteBuffer> row,
                                               ProtocolVersion protocolVersion,
                                               ResultSet.ResultMetadata metadata,
@@ -496,6 +499,12 @@ public abstract class Selection
                 }
             };
         }
+
+        @Override
+        public String toCQLString()
+        {
+            return getColumns().stream().map(c -> ColumnIdentifier.maybeQuote(c.name.toString())).collect(Collectors.joining(", "));
+        }
     }
 
     private static class SelectionWithProcessing extends Selection
@@ -605,5 +614,16 @@ public abstract class Selection
             };
         }
 
+        @Override
+        public String toCQLString()
+        {
+            StringBuilder sb = new StringBuilder();
+            for(int i=0; i < this.factories.size(); i++) {
+                if (i > 0)
+                    sb.append(",");
+                sb.append(this.factories.get(i).getColumnNameCQL3());
+            }
+            return sb.toString();
+        }
     }
 }

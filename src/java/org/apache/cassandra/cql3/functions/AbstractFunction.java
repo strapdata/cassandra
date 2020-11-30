@@ -25,6 +25,7 @@ import com.google.common.base.Objects;
 import org.apache.cassandra.cql3.AssignmentTestable;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.CQL3Type.Tuple;
+import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.cql3.ColumnSpecification;
 import org.apache.cassandra.cql3.CqlBuilder;
 import org.apache.cassandra.cql3.CqlBuilder.Appender;
@@ -163,6 +164,17 @@ public abstract class AbstractFunction implements Function
     {
         return new StrBuilder(name().toString()).append('(')
                                                 .appendWithSeparators(columnNames, ", ")
+                                                .append(')')
+                                                .toString();
+    }
+
+    @Override
+    public String columnNameCQL3(List<String> columnNames)
+    {
+        return new StrBuilder(name().toString()).append('(')
+                                                .appendWithSeparators(columnNames.stream()
+                                                                                 .map(c-> ColumnIdentifier.maybeQuote(c))
+                                                                                 .toArray(String[]::new), ", ")
                                                 .append(')')
                                                 .toString();
     }

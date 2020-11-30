@@ -138,6 +138,17 @@ public abstract class Selector
         protected abstract String getColumnName();
 
         /**
+         * Returns the name of the column corresponding to the output value of the selector instances created by
+         * this factory that is safe to use directly in CQL queries.
+         *
+         * @return a column name
+         */
+        protected String getColumnNameCQL3()
+        {
+            return getColumnName();
+        }
+
+        /**
          * Returns the type of the values returned by the selector instances created by this factory.
          *
          * @return the selector output type
@@ -211,4 +222,13 @@ public abstract class Selector
      * Reset the internal state of this <code>Selector</code>.
      */
     public abstract void reset();
+
+    /**
+     * Returns a string representation of the identifier that is safe to use directly in CQL queries.
+     * If necessary, the string will be double-quoted, and any quotes inside the string will be escaped.
+     */
+    public String toCQLString()
+    {
+        return toString();
+    }
 }
