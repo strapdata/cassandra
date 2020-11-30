@@ -217,6 +217,18 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
         if (writableIndexes.put(index.getIndexMetadata().name, index) == null)
             logger.info("Index [{}] registered and writable.", index.getIndexMetadata().name);
 
+        if (index.delayInitializationTask()) {
+            return Futures.immediateFuture(null);
+        }
+        return initIndex(index, isNewCF);
+    }
+
+    public synchronized Future<?> initIndex(final Index index) {
+        return initIndex(index, false);
+    }
+
+    private synchronized Future<?> initIndex(final Index index, boolean isNewCF) {
+        IndexMetadata indexDef = index.getIndexMetadata();
         markIndexesBuilding(ImmutableSet.of(index), true, isNewCF);
 
         Callable<?> initialBuildTask = null;

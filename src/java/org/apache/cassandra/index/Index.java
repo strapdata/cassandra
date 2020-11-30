@@ -232,6 +232,15 @@ public interface Index
     public Callable<?> getInitializationTask();
 
     /**
+     * Indicates if this index implementation requires delayed initialization.
+     * @return true if index initialization should be delayed.
+     */
+    default public boolean delayInitializationTask()
+    {
+        return false;
+    }
+
+    /**
      * Returns the IndexMetadata which configures and defines the index instance. This should be the same
      * object passed as the argument to setIndexMetadata.
      * @return the index's metadata
@@ -281,7 +290,7 @@ public interface Index
     {
         return null;
     }
-    
+
     /**
      * Return a task which invalidates the index, indicating it should no longer be considered usable.
      * This should include an clean up and releasing of resources required when dropping an index.
