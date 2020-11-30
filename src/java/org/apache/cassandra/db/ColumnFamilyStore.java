@@ -440,7 +440,11 @@ public class ColumnFamilyStore implements ColumnFamilyStoreMBean
 
             String[] objectNames = {mbeanName, oldMBeanName};
             for (String objectName : objectNames)
+            {
+                if (MBeanWrapper.instance.isRegistered(objectName))
+                    MBeanWrapper.instance.unregisterMBean(objectName);
                 MBeanWrapper.instance.registerMBean(this, objectName);
+            }
         }
         else
         {
