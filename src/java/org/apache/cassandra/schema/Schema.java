@@ -574,9 +574,9 @@ public final class Schema implements SchemaProvider
      *
      * @throws ConfigurationException If one of metadata attributes has invalid value
      */
-    synchronized void mergeAndAnnounceVersion(Collection<Mutation> mutations)
+    synchronized void mergeAndAnnounceVersion(Collection<Mutation> mutations, SchemaChangeListener... inhibitedListener)
     {
-        merge(mutations);
+        merge(mutations, inhibitedListener);
         updateVersionAndAnnounce();
     }
 
@@ -634,7 +634,7 @@ public final class Schema implements SchemaProvider
         }
     }
 
-    synchronized void merge(Collection<Mutation> mutations)
+    public synchronized void merge(Collection<Mutation> mutations, SchemaChangeListener... inhibitedListeners)
     {
         // only compare the keyspaces affected by this set of schema mutations
         Set<String> affectedKeyspaces = SchemaKeyspace.affectedKeyspaces(mutations);
@@ -648,14 +648,19 @@ public final class Schema implements SchemaProvider
         // apply the schema mutations and fetch the new versions of the altered keyspaces
         Keyspaces after = SchemaKeyspace.fetchKeyspaces(affectedKeyspaces);
 
-        merge(Keyspaces.diff(before, after));
+        merge(Keyspaces.diff(before, after), inhibitedListeners);
     }
 
-    private void merge(KeyspacesDiff diff)
+    private void merge(KeyspacesDiff diff, SchemaChangeListener... inhibitedListeners)
     {
+        Collection<SchemaChangeListener> inhibitedListenersCollection = Arrays.asList(inhibitedListeners);
+        notifyBeginTransaction(inhibitedListenersCollection);
+
         diff.dropped.forEach(this::dropKeyspace);
         diff.created.forEach(this::createKeyspace);
         diff.altered.forEach(this::alterKeyspace);
+
+        notifyEndTransaction(inhibitedListenersCollection);
     }
 
     private void alterKeyspace(KeyspaceDiff delta)
@@ -683,12 +688,12 @@ public final class Schema implements SchemaProvider
         delta.udas.dropped.forEach(uda -> notifyDropAggregate((UDAggregate) uda));
         delta.udfs.dropped.forEach(udf -> notifyDropFunction((UDFunction) udf));
         delta.views.dropped.forEach(this::notifyDropView);
-        delta.tables.dropped.forEach(this::notifyDropTable);
+        delta.tables.dropped.forEach(table -> notifyDropTable(delta.after, table));
         delta.types.dropped.forEach(this::notifyDropType);
 
         // notify on everything created
         delta.types.created.forEach(this::notifyCreateType);
-        delta.tables.created.forEach(this::notifyCreateTable);
+        delta.tables.created.forEach(table -> notifyCreateTable(delta.after, table));
         delta.views.created.forEach(this::notifyCreateView);
         delta.udfs.created.forEach(udf -> notifyCreateFunction((UDFunction) udf));
         delta.udas.created.forEach(uda -> notifyCreateAggregate((UDAggregate) uda));
@@ -697,7 +702,7 @@ public final class Schema implements SchemaProvider
         if (!delta.before.params.equals(delta.after.params))
             notifyAlterKeyspace(delta.before, delta.after);
         delta.types.altered.forEach(diff -> notifyAlterType(diff.before, diff.after));
-        delta.tables.altered.forEach(diff -> notifyAlterTable(diff.before, diff.after));
+        delta.tables.altered.forEach(diff -> notifyAlterTable(delta.after, diff.before, diff.after));
         delta.views.altered.forEach(diff -> notifyAlterView(diff.before, diff.after));
         delta.udfs.altered.forEach(diff -> notifyAlterFunction(diff.before, diff.after));
         delta.udas.altered.forEach(diff -> notifyAlterAggregate(diff.before, diff.after));
@@ -712,7 +717,7 @@ public final class Schema implements SchemaProvider
 
         notifyCreateKeyspace(keyspace);
         keyspace.types.forEach(this::notifyCreateType);
-        keyspace.tables.forEach(this::notifyCreateTable);
+        keyspace.tables.forEach(table -> notifyCreateTable(keyspace, table));
         keyspace.views.forEach(this::notifyCreateView);
         keyspace.functions.udfs().forEach(this::notifyCreateFunction);
         keyspace.functions.udas().forEach(this::notifyCreateAggregate);
@@ -733,7 +738,7 @@ public final class Schema implements SchemaProvider
         keyspace.functions.udas().forEach(this::notifyDropAggregate);
         keyspace.functions.udfs().forEach(this::notifyDropFunction);
         keyspace.views.forEach(this::notifyDropView);
-        keyspace.tables.forEach(this::notifyDropTable);
+        keyspace.tables.forEach(table -> notifyDropTable(keyspace, table));
         keyspace.types.forEach(this::notifyDropType);
         notifyDropKeyspace(keyspace);
         SchemaDiagnostics.keyspaceDroped(this, keyspace);
@@ -784,14 +789,33 @@ public final class Schema implements SchemaProvider
         Keyspace.open(updated.keyspace()).getColumnFamilyStore(updated.name()).reload();
     }
 
-    private void notifyCreateKeyspace(KeyspaceMetadata ksm)
+    public void notifyBeginTransaction(Collection<SchemaChangeListener> inhibitedListeners)
     {
-        changeListeners.forEach(l -> l.onCreateKeyspace(ksm.name));
+
+        for (SchemaChangeListener changeListener : changeListeners)
+        {
+            if (!inhibitedListeners.contains(changeListener))
+                changeListener.onBeginTransaction();
+        }
     }
 
-    private void notifyCreateTable(TableMetadata metadata)
+    public void notifyEndTransaction(Collection<SchemaChangeListener> inhibitedListeners)
     {
-        changeListeners.forEach(l -> l.onCreateTable(metadata.keyspace, metadata.name));
+        for (SchemaChangeListener changeListener : changeListeners)
+        {
+            if (!inhibitedListeners.contains(changeListener))
+                changeListener.onEndTransaction();
+        }
+    }
+
+    private void notifyCreateKeyspace(KeyspaceMetadata ksm)
+    {
+        changeListeners.forEach(l -> l.onCreateKeyspace(ksm));
+    }
+
+    private void notifyCreateTable(KeyspaceMetadata ksm, TableMetadata metadata)
+    {
+        changeListeners.forEach(l -> l.onCreateTable(ksm, metadata));
     }
 
     private void notifyCreateView(ViewMetadata view)
@@ -816,13 +840,13 @@ public final class Schema implements SchemaProvider
 
     private void notifyAlterKeyspace(KeyspaceMetadata before, KeyspaceMetadata after)
     {
-        changeListeners.forEach(l -> l.onAlterKeyspace(after.name));
+        changeListeners.forEach(l -> l.onAlterKeyspace(after));
     }
 
-    private void notifyAlterTable(TableMetadata before, TableMetadata after)
+    private void notifyAlterTable(KeyspaceMetadata ksm, TableMetadata before, TableMetadata after)
     {
         boolean changeAffectedPreparedStatements = before.changeAffectsPreparedStatements(after);
-        changeListeners.forEach(l -> l.onAlterTable(after.keyspace, after.name, changeAffectedPreparedStatements));
+        changeListeners.forEach(l -> l.onAlterTable(ksm, after, changeAffectedPreparedStatements));
     }
 
     private void notifyAlterView(ViewMetadata before, ViewMetadata after)
@@ -848,12 +872,12 @@ public final class Schema implements SchemaProvider
 
     private void notifyDropKeyspace(KeyspaceMetadata ksm)
     {
-        changeListeners.forEach(l -> l.onDropKeyspace(ksm.name));
+        changeListeners.forEach(l -> l.onDropKeyspace(ksm));
     }
 
-    private void notifyDropTable(TableMetadata metadata)
+    private void notifyDropTable(KeyspaceMetadata ksm, TableMetadata metadata)
     {
-        changeListeners.forEach(l -> l.onDropTable(metadata.keyspace, metadata.name));
+        changeListeners.forEach(l -> l.onDropTable(ksm, metadata));
     }
 
     private void notifyDropView(ViewMetadata view)

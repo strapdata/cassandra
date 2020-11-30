@@ -321,7 +321,7 @@ public class MigrationManager
      * actively announce a new version to active hosts via rpc
      * @param schema The schema mutation to be applied
      */
-    private static void announce(Mutation.SimpleBuilder schema, boolean announceLocally)
+    public static void announce(Mutation.SimpleBuilder schema, boolean announceLocally)
     {
         List<Mutation> mutations = Collections.singletonList(schema.build());
 
@@ -338,7 +338,12 @@ public class MigrationManager
 
     public static void announce(Collection<Mutation> schema)
     {
-        Future<?> f = MIGRATION.submit(() -> Schema.instance.mergeAndAnnounceVersion(schema));
+        FBUtilities.waitOnFuture(announceAsync(schema));
+    }
+
+    public static Future<?> announceAsync(Collection<Mutation> schema, SchemaChangeListener... inhibitedListener)
+    {
+        Future<?> f = MIGRATION.submit(() -> Schema.instance.mergeAndAnnounceVersion(schema, inhibitedListener));
 
         Set<InetAddressAndPort> schemaDestinationEndpoints = new HashSet<>();
         Set<InetAddressAndPort> schemaEndpointsIgnored = new HashSet<>();
@@ -357,7 +362,7 @@ public class MigrationManager
         }
 
         SchemaAnnouncementDiagnostics.schemaMutationsAnnounced(schemaDestinationEndpoints, schemaEndpointsIgnored);
-        FBUtilities.waitOnFuture(f);
+        return f;
     }
 
     public static KeyspacesDiff announce(SchemaTransformation transformation, boolean locally)

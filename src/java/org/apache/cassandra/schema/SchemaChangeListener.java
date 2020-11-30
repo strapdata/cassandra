@@ -23,8 +23,34 @@ import org.apache.cassandra.db.marshal.AbstractType;
 
 public abstract class SchemaChangeListener
 {
+    /**
+     * Start a schema merge transaction.
+     * This helps to manage a batch of schema mutations together.
+     */
+    public void onBeginTransaction()
+    {
+    }
+
+    /**
+     * End a schema merge transaction.
+     */
+    public void onEndTransaction()
+    {
+    }
+
+    public void onCreateKeyspace(KeyspaceMetadata ksm)
+    {
+        onCreateKeyspace(ksm.name);
+    }
+
+
     public void onCreateKeyspace(String keyspace)
     {
+    }
+
+    public void onCreateTable(KeyspaceMetadata ksm, TableMetadata cfm)
+    {
+        onCreateTable(ksm.name, cfm.name);
     }
 
     public void onCreateTable(String keyspace, String table)
@@ -48,8 +74,18 @@ public abstract class SchemaChangeListener
     {
     }
 
+    public void onAlterKeyspace(KeyspaceMetadata ksm)
+    {
+        onAlterKeyspace(ksm.name);
+    }
+
     public void onAlterKeyspace(String keyspace)
     {
+    }
+
+    public void onAlterTable(KeyspaceMetadata ksm, TableMetadata cfm, boolean affectsStatements)
+    {
+        onAlterTable(ksm.name, cfm.name, affectsStatements);
     }
 
     // the boolean flag indicates whether the change that triggered this event may have a substantive
@@ -75,8 +111,18 @@ public abstract class SchemaChangeListener
     {
     }
 
+    public void onDropKeyspace(KeyspaceMetadata ksm)
+    {
+        onDropKeyspace(ksm.name);
+    }
+
     public void onDropKeyspace(String keyspace)
     {
+    }
+
+    public void onDropTable(KeyspaceMetadata ksm, TableMetadata cfm)
+    {
+        onDropTable(ksm.name, cfm.name);
     }
 
     public void onDropTable(String keyspace, String table)
