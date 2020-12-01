@@ -114,10 +114,10 @@ public final class TableParams
     public static Builder builder(TableParams params)
     {
         return new Builder().bloomFilterFpChance(params.bloomFilterFpChance)
-                            .caching(params.caching)
+                            .caching(params.caching.copy())
                             .comment(params.comment)
-                            .compaction(params.compaction)
-                            .compression(params.compression)
+                            .compaction(params.compaction.copy())
+                            .compression(params.compression.copy())
                             .crcCheckChance(params.crcCheckChance)
                             .defaultTimeToLive(params.defaultTimeToLive)
                             .gcGraceSeconds(params.gcGraceSeconds)
@@ -126,7 +126,7 @@ public final class TableParams
                             .minIndexInterval(params.minIndexInterval)
                             .speculativeRetry(params.speculativeRetry)
                             .additionalWritePolicy(params.additionalWritePolicy)
-                            .extensions(params.extensions)
+                            .extensions(ImmutableMap.copyOf(params.extensions))
                             .cdc(params.cdc)
                             .readRepair(params.readRepair);
     }

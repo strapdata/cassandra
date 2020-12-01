@@ -20,6 +20,7 @@ package org.apache.cassandra.schema;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -91,6 +92,11 @@ public final class Types implements Iterable<UserType>
     public Stream<UserType> stream()
     {
         return StreamSupport.stream(spliterator(), false);
+    }
+
+    public Types copy()
+    {
+        return builder().add(types.values().stream().map(ut -> ut.copy()).collect(Collectors.toList())).build();
     }
 
     /**

@@ -90,6 +90,11 @@ public final class CompactionParams
         this.tombstoneOption = tombstoneOption;
     }
 
+    public CompactionParams copy()
+    {
+        return new CompactionParams(this.klass, this.options, this.isEnabled, this.tombstoneOption);
+    }
+
     public static CompactionParams create(Class<? extends AbstractCompactionStrategy> klass, Map<String, String> options)
     {
         boolean isEnabled = options.containsKey(Option.ENABLED.toString())

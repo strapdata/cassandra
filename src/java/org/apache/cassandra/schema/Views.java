@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -93,6 +94,11 @@ public final class Views implements Iterable<ViewMetadata>
     public Stream<ViewMetadata> stream(TableId tableId)
     {
         return stream().filter(v -> v.baseTableId.equals(tableId));
+    }
+
+    public Views copy()
+    {
+        return builder().put(views.values().stream().map(v -> v.copy(v.metadata.copy())).collect(Collectors.toList())).build();
     }
 
     /**

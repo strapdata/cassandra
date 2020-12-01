@@ -66,6 +66,11 @@ public final class CachingParams
         this.rowsPerPartitionToCache = rowsPerPartitionToCache;
     }
 
+    public CachingParams copy()
+    {
+        return new CachingParams(this.cacheKeys, this.rowsPerPartitionToCache);
+    }
+
     public boolean cacheKeys()
     {
         return cacheKeys;

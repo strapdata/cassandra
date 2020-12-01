@@ -159,6 +159,11 @@ public final class TableMetadata implements SchemaElement
         resource = DataResource.table(keyspace, name);
     }
 
+    public TableMetadata copy()
+    {
+        return unbuild().build();
+    }
+
     public static Builder builder(String keyspace, String table)
     {
         return new Builder(keyspace, table);
@@ -1019,7 +1024,7 @@ public final class TableMetadata implements SchemaElement
             return this;
         }
     }
-    
+
     /**
      * A table with strict liveness filters/ignores rows without PK liveness info,
      * effectively tying the row liveness to its primary key liveness.

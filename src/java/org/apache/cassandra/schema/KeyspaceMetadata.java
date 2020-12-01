@@ -89,6 +89,17 @@ public final class KeyspaceMetadata implements SchemaElement
         return new KeyspaceMetadata(name, Kind.REGULAR, params, tables, views, types, functions);
     }
 
+    public KeyspaceMetadata copy()
+    {
+        return create(
+                this.name,
+                this.params,
+                this.tables.copy(),
+                this.views.copy(),
+                this.types.copy(),
+                this.functions.copy());
+    }
+
     public static KeyspaceMetadata virtual(String name, Tables tables)
     {
         return new KeyspaceMetadata(name, Kind.VIRTUAL, KeyspaceParams.local(), tables, Views.none(), Types.none(), Functions.none());
@@ -137,6 +148,11 @@ public final class KeyspaceMetadata implements SchemaElement
                                     views.withUpdatedUserTypes(udt),
                                     types.withUpdatedUserType(udt),
                                     functions.withUpdatedUserType(udt));
+    }
+
+    public Iterable<ViewMetadata> views(String baseTable)
+    {
+        return Iterables.filter(views, view -> view.baseTableName.equals(baseTable));
     }
 
     public Iterable<TableMetadata> tablesAndViews()

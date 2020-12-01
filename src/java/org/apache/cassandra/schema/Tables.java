@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -52,6 +53,11 @@ public final class Tables implements Iterable<TableMetadata>
         tables = builder.tables.build();
         tablesById = builder.tablesById.build();
         indexTables = builder.indexTables.build();
+    }
+
+    public Tables copy()
+    {
+        return builder().add(tables.values().stream().map(t -> t.copy()).collect(Collectors.toList())).build();
     }
 
     public static Builder builder()
