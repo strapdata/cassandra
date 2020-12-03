@@ -26,12 +26,12 @@ fi
 # The java classpath (required)
 CLASSPATH="$CASSANDRA_CONF"
 
-# This can be the path to a jar file, or a directory containing the 
+# This can be the path to a jar file, or a directory containing the
 # compiled classes. NOTE: This isn't needed by the startup script,
 # it's just used here in constructing the classpath.
 if [ -d $CASSANDRA_HOME/build ] ; then
     #cassandra_bin="$CASSANDRA_HOME/build/classes/main"
-    cassandra_bin=`ls -1 $CASSANDRA_HOME/build/apache-cassandra*.jar`
+    cassandra_bin=`ls -1 $CASSANDRA_HOME/build/strapdata-cassandra*.jar`
 
     CLASSPATH="$CLASSPATH:$cassandra_bin"
 fi
