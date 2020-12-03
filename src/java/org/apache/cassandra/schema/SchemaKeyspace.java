@@ -478,7 +478,7 @@ public final class SchemaKeyspace
         return metadata.partitioner.decorateKey(((AbstractType) metadata.partitionKeyType).decompose(value));
     }
 
-    static Mutation.SimpleBuilder makeCreateKeyspaceMutation(String name, KeyspaceParams params, long timestamp)
+    public static Mutation.SimpleBuilder makeCreateKeyspaceMutation(String name, KeyspaceParams params, long timestamp)
     {
         Mutation.SimpleBuilder builder = Mutation.simpleBuilder(Schema.instance.schemaKeyspace.Keyspaces.keyspace,
                                                                 decorate(Schema.instance.schemaKeyspace.Keyspaces, name))
@@ -563,6 +563,16 @@ public final class SchemaKeyspace
             for (IndexMetadata index : table.indexes)
                 addIndexToSchemaMutation(table, index, builder);
         }
+        return builder;
+    }
+
+    public static Mutation.SimpleBuilder updateTableExtensionsToSchemaMutation(TableMetadata table, Map<String, ByteBuffer> extensions, Mutation.SimpleBuilder builder)
+    {
+        builder.update(Schema.instance.schemaKeyspace.Tables)
+                .row(table.name)
+                .add("id", table.id.asUUID())
+                .add("flags", TableMetadata.Flag.toStringSet(table.flags))
+                .add("extensions", extensions);
         return builder;
     }
 

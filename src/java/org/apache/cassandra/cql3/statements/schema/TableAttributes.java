@@ -19,6 +19,7 @@ package org.apache.cassandra.cql3.statements.schema;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableSet;
 
@@ -33,6 +34,7 @@ import org.apache.cassandra.schema.TableParams;
 import org.apache.cassandra.schema.TableParams.Option;
 import org.apache.cassandra.service.reads.SpeculativeRetryPolicy;
 import org.apache.cassandra.service.reads.repair.ReadRepairStrategy;
+import org.apache.cassandra.utils.ByteBufferUtil;
 
 import static java.lang.String.format;
 
@@ -140,6 +142,12 @@ public final class TableAttributes extends PropertyDefinitions
         if (hasOption(Option.READ_REPAIR))
             builder.readRepair(ReadRepairStrategy.fromString(getString(Option.READ_REPAIR)));
 
+        if (hasOption(Option.EXTENSIONS))
+        {
+            builder.extensions(getMap(Option.EXTENSIONS)
+                               .entrySet().stream()
+                               .collect(Collectors.toMap(Map.Entry::getKey, e -> ByteBufferUtil.hexToBytes(e.getValue()))));
+        }
         return builder.build();
     }
 
