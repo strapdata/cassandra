@@ -20,6 +20,8 @@ package org.apache.cassandra.auth;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
+import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.SchemaConstants;
@@ -31,10 +33,6 @@ import static java.lang.String.format;
 
 public final class AuthKeyspace
 {
-    private AuthKeyspace()
-    {
-    }
-
     /**
      * Generation is used as a timestamp for automatic table creation on startup.
      * If you make any changes to the tables below, make sure to increment the
@@ -53,8 +51,19 @@ public final class AuthKeyspace
 
     public static final long SUPERUSER_SETUP_DELAY = Long.getLong("cassandra.superuser_setup_delay_ms", 10000);
 
-    private static final TableMetadata Roles =
-        parse(ROLES,
+    private final TableMetadata Roles;
+
+    private final TableMetadata RoleMembers;
+
+    private final TableMetadata RolePermissions;
+
+    private final TableMetadata ResourceRoleIndex;
+
+    private final TableMetadata NetworkPermissions;
+
+    public AuthKeyspace(KeyspaceMetadata ksm)
+    {
+        this.Roles = parse(ksm, ROLES,
               "role definitions",
               "CREATE TABLE %s ("
               + "role text,"
@@ -64,16 +73,14 @@ public final class AuthKeyspace
               + "member_of set<text>,"
               + "PRIMARY KEY(role))");
 
-    private static final TableMetadata RoleMembers =
-        parse(ROLE_MEMBERS,
+        this.RoleMembers = parse(ksm, ROLE_MEMBERS,
               "role memberships lookup table",
               "CREATE TABLE %s ("
               + "role text,"
               + "member text,"
               + "PRIMARY KEY(role, member))");
 
-    private static final TableMetadata RolePermissions =
-        parse(ROLE_PERMISSIONS,
+        this.RolePermissions = parse(ksm, ROLE_PERMISSIONS,
               "permissions granted to db roles",
               "CREATE TABLE %s ("
               + "role text,"
@@ -81,35 +88,39 @@ public final class AuthKeyspace
               + "permissions set<text>,"
               + "PRIMARY KEY(role, resource))");
 
-    private static final TableMetadata ResourceRoleIndex =
-        parse(RESOURCE_ROLE_INDEX,
+        this.ResourceRoleIndex = parse(ksm, RESOURCE_ROLE_INDEX,
               "index of db roles with permissions granted on a resource",
               "CREATE TABLE %s ("
               + "resource text,"
               + "role text,"
               + "PRIMARY KEY(resource, role))");
 
-    private static final TableMetadata NetworkPermissions =
-        parse(NETWORK_PERMISSIONS,
+        this.NetworkPermissions = parse(ksm, NETWORK_PERMISSIONS,
               "user network permissions",
               "CREATE TABLE %s ("
               + "role text, "
               + "dcs frozen<set<text>>, "
               + "PRIMARY KEY(role))");
 
-    private static TableMetadata parse(String name, String description, String cql)
+    }
+
+    private static TableMetadata parse(KeyspaceMetadata ksm, String name, String description, String cql)
     {
-        return CreateTableStatement.parse(format(cql, name), SchemaConstants.AUTH_KEYSPACE_NAME)
+        return CreateTableStatement.parse(format(cql, name), ksm)
                                    .id(TableId.forSystemTable(SchemaConstants.AUTH_KEYSPACE_NAME, name))
                                    .comment(description)
                                    .gcGraceSeconds((int) TimeUnit.DAYS.toSeconds(90))
                                    .build();
     }
 
+    public Tables tables()
+    {
+        return Tables.of(Roles, RoleMembers, RolePermissions, ResourceRoleIndex, NetworkPermissions);
+    }
+
     public static KeyspaceMetadata metadata()
     {
-        return KeyspaceMetadata.create(SchemaConstants.AUTH_KEYSPACE_NAME,
-                                       KeyspaceParams.simple(1),
-                                       Tables.of(Roles, RoleMembers, RolePermissions, ResourceRoleIndex, NetworkPermissions));
+        KeyspaceMetadata authKeyspaceMetadata = KeyspaceMetadata.create(SchemaConstants.AUTH_KEYSPACE_NAME, KeyspaceParams.simple(1));
+        return authKeyspaceMetadata.withSwapped(new AuthKeyspace(authKeyspaceMetadata).tables());
     }
 }

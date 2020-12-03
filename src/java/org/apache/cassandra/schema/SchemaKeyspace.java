@@ -63,10 +63,6 @@ import static org.apache.cassandra.cql3.QueryProcessor.executeOnceInternal;
  */
 public final class SchemaKeyspace
 {
-    private SchemaKeyspace()
-    {
-    }
-
     private static final Logger logger = LoggerFactory.getLogger(SchemaKeyspace.class);
 
     private static final boolean FLUSH_SCHEMA_TABLES = Boolean.parseBoolean(System.getProperty("cassandra.test.flush_local_schema_changes", "true"));
@@ -105,8 +101,31 @@ public final class SchemaKeyspace
      */
     private static final Set<String> TABLES_WITH_CDC_ADDED = ImmutableSet.of(TABLES, VIEWS);
 
-    private static final TableMetadata Keyspaces =
-        parse(KEYSPACES,
+    private final TableMetadata Keyspaces;
+
+    private final TableMetadata Tables ;
+
+    private final TableMetadata Columns;
+
+    private final TableMetadata DroppedColumns;
+
+    private final TableMetadata Triggers;
+
+    private final TableMetadata Views;
+
+    private final TableMetadata Indexes;
+
+    private final TableMetadata Types;
+
+    private final TableMetadata Functions;
+
+    private final TableMetadata Aggregates;
+
+    private final List<TableMetadata> ALL_TABLE_METADATA;
+
+    protected SchemaKeyspace(KeyspaceMetadata ksm)
+    {
+        this.Keyspaces = parse(ksm, KEYSPACES,
               "keyspace definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -114,8 +133,7 @@ public final class SchemaKeyspace
               + "replication frozen<map<text, text>>,"
               + "PRIMARY KEY ((keyspace_name)))");
 
-    private static final TableMetadata Tables =
-        parse(TABLES,
+        this.Tables = parse(ksm, TABLES,
               "table definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -142,8 +160,7 @@ public final class SchemaKeyspace
               + "read_repair text,"
               + "PRIMARY KEY ((keyspace_name), table_name))");
 
-    private static final TableMetadata Columns =
-        parse(COLUMNS,
+        this.Columns = parse(ksm, COLUMNS,
               "column definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -156,8 +173,7 @@ public final class SchemaKeyspace
               + "type text,"
               + "PRIMARY KEY ((keyspace_name), table_name, column_name))");
 
-    private static final TableMetadata DroppedColumns =
-        parse(DROPPED_COLUMNS,
+        this.DroppedColumns = parse(ksm, DROPPED_COLUMNS,
               "dropped column registry",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -168,8 +184,7 @@ public final class SchemaKeyspace
               + "type text,"
               + "PRIMARY KEY ((keyspace_name), table_name, column_name))");
 
-    private static final TableMetadata Triggers =
-        parse(TRIGGERS,
+        this.Triggers = parse(ksm, TRIGGERS,
               "trigger definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -178,8 +193,7 @@ public final class SchemaKeyspace
               + "options frozen<map<text, text>>,"
               + "PRIMARY KEY ((keyspace_name), table_name, trigger_name))");
 
-    private static final TableMetadata Views =
-        parse(VIEWS,
+        this.Views = parse(ksm, VIEWS,
               "view definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -209,8 +223,7 @@ public final class SchemaKeyspace
               + "read_repair text,"
               + "PRIMARY KEY ((keyspace_name), view_name))");
 
-    private static final TableMetadata Indexes =
-        parse(INDEXES,
+        this.Indexes = parse(ksm, INDEXES,
               "secondary index definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -220,8 +233,7 @@ public final class SchemaKeyspace
               + "options frozen<map<text, text>>,"
               + "PRIMARY KEY ((keyspace_name), table_name, index_name))");
 
-    private static final TableMetadata Types =
-        parse(TYPES,
+        this.Types = parse(ksm, TYPES,
               "user defined type definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -230,8 +242,7 @@ public final class SchemaKeyspace
               + "field_types frozen<list<text>>,"
               + "PRIMARY KEY ((keyspace_name), type_name))");
 
-    private static final TableMetadata Functions =
-        parse(FUNCTIONS,
+        this.Functions = parse(ksm, FUNCTIONS,
               "user defined function definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -244,8 +255,7 @@ public final class SchemaKeyspace
               + "called_on_null_input boolean,"
               + "PRIMARY KEY ((keyspace_name), function_name, argument_types))");
 
-    private static final TableMetadata Aggregates =
-        parse(AGGREGATES,
+        this.Aggregates = parse(ksm, AGGREGATES,
               "user defined aggregate definitions",
               "CREATE TABLE %s ("
               + "keyspace_name text,"
@@ -257,13 +267,17 @@ public final class SchemaKeyspace
               + "state_func text,"
               + "state_type text,"
               + "PRIMARY KEY ((keyspace_name), aggregate_name, argument_types))");
+        ALL_TABLE_METADATA = ImmutableList.of(Keyspaces, Tables, Columns, Triggers, DroppedColumns, Views, Types, Functions, Aggregates, Indexes);
+    }
 
-    private static final List<TableMetadata> ALL_TABLE_METADATA =
-        ImmutableList.of(Keyspaces, Tables, Columns, Triggers, DroppedColumns, Views, Types, Functions, Aggregates, Indexes);
-
-    private static TableMetadata parse(String name, String description, String cql)
+    public Tables tables()
     {
-        return CreateTableStatement.parse(format(cql, name), SchemaConstants.SCHEMA_KEYSPACE_NAME)
+        return org.apache.cassandra.schema.Tables.of(ALL_TABLE_METADATA);
+    }
+
+    private static TableMetadata parse(KeyspaceMetadata ksm, String name, String description, String cql)
+    {
+        return CreateTableStatement.parse(format(cql, name), ksm)
                                    .id(TableId.forSystemTable(SchemaConstants.SCHEMA_KEYSPACE_NAME, name))
                                    .gcGraceSeconds((int) TimeUnit.DAYS.toSeconds(7))
                                    .memtableFlushPeriod((int) TimeUnit.HOURS.toMillis(1))
@@ -273,7 +287,7 @@ public final class SchemaKeyspace
 
     public static KeyspaceMetadata metadata()
     {
-        return KeyspaceMetadata.create(SchemaConstants.SCHEMA_KEYSPACE_NAME, KeyspaceParams.local(), org.apache.cassandra.schema.Tables.of(ALL_TABLE_METADATA));
+        return Schema.instance.getKeyspaceMetadata(SchemaConstants.SCHEMA_KEYSPACE_NAME);
     }
 
     static Collection<Mutation> convertSchemaDiffToMutations(KeyspacesDiff diff, long timestamp)
@@ -466,10 +480,11 @@ public final class SchemaKeyspace
 
     static Mutation.SimpleBuilder makeCreateKeyspaceMutation(String name, KeyspaceParams params, long timestamp)
     {
-        Mutation.SimpleBuilder builder = Mutation.simpleBuilder(Keyspaces.keyspace, decorate(Keyspaces, name))
+        Mutation.SimpleBuilder builder = Mutation.simpleBuilder(Schema.instance.schemaKeyspace.Keyspaces.keyspace,
+                                                                decorate(Schema.instance.schemaKeyspace.Keyspaces, name))
                                                  .timestamp(timestamp);
 
-        builder.update(Keyspaces)
+        builder.update(Schema.instance.schemaKeyspace.Keyspaces)
                .row()
                .add(KeyspaceParams.Option.DURABLE_WRITES.toString(), params.durableWrites)
                .add(KeyspaceParams.Option.REPLICATION.toString(), params.replication.asMap());
@@ -477,7 +492,7 @@ public final class SchemaKeyspace
         return builder;
     }
 
-    static Mutation.SimpleBuilder makeCreateKeyspaceMutation(KeyspaceMetadata keyspace, long timestamp)
+    public static Mutation.SimpleBuilder makeCreateKeyspaceMutation(KeyspaceMetadata keyspace, long timestamp)
     {
         Mutation.SimpleBuilder builder = makeCreateKeyspaceMutation(keyspace.name, keyspace.params, timestamp);
 
@@ -490,28 +505,31 @@ public final class SchemaKeyspace
         return builder;
     }
 
-    static Mutation.SimpleBuilder makeDropKeyspaceMutation(KeyspaceMetadata keyspace, long timestamp)
+    public static Mutation.SimpleBuilder makeDropKeyspaceMutation(KeyspaceMetadata keyspace, long timestamp)
     {
-        Mutation.SimpleBuilder builder = Mutation.simpleBuilder(SchemaConstants.SCHEMA_KEYSPACE_NAME, decorate(Keyspaces, keyspace.name))
+        Mutation.SimpleBuilder builder = Mutation.simpleBuilder(SchemaConstants.SCHEMA_KEYSPACE_NAME,
+                                                                decorate(Schema.instance.schemaKeyspace.Keyspaces, keyspace.name))
                                                  .timestamp(timestamp);
 
-        for (TableMetadata schemaTable : ALL_TABLE_METADATA)
+        for (TableMetadata schemaTable : Schema.instance.schemaKeyspace.ALL_TABLE_METADATA)
             builder.update(schemaTable).delete();
 
         return builder;
     }
 
-    private static void addTypeToSchemaMutation(UserType type, Mutation.SimpleBuilder mutation)
+    public static Mutation.SimpleBuilder addTypeToSchemaMutation(UserType type, Mutation.SimpleBuilder builder)
     {
-        mutation.update(Types)
+        builder.update(Schema.instance.schemaKeyspace.Types)
                 .row(type.getNameAsString())
                 .add("field_names", type.fieldNames().stream().map(FieldIdentifier::toString).collect(toList()))
                 .add("field_types", type.fieldTypes().stream().map(AbstractType::asCQL3Type).map(CQL3Type::toString).collect(toList()));
+        return builder;
     }
 
-    private static void addDropTypeToSchemaMutation(UserType type, Mutation.SimpleBuilder builder)
+    public static Mutation.SimpleBuilder addDropTypeToSchemaMutation(UserType type, Mutation.SimpleBuilder builder)
     {
-        builder.update(Types).row(type.name).delete();
+        builder.update(Schema.instance.schemaKeyspace.Types).row(type.name).delete();
+        return builder;
     }
 
     static Mutation.SimpleBuilder makeCreateTableMutation(KeyspaceMetadata keyspace, TableMetadata table, long timestamp)
@@ -522,9 +540,9 @@ public final class SchemaKeyspace
         return builder;
     }
 
-    static void addTableToSchemaMutation(TableMetadata table, boolean withColumnsAndTriggers, Mutation.SimpleBuilder builder)
+    public static Mutation.SimpleBuilder addTableToSchemaMutation(TableMetadata table, boolean withColumnsAndTriggers, Mutation.SimpleBuilder builder)
     {
-        Row.SimpleBuilder rowBuilder = builder.update(Tables)
+        Row.SimpleBuilder rowBuilder = builder.update(Schema.instance.schemaKeyspace.Tables)
                                               .row(table.name)
                                               .add("id", table.id.asUUID())
                                               .add("flags", TableMetadata.Flag.toStringSet(table.flags));
@@ -545,6 +563,7 @@ public final class SchemaKeyspace
             for (IndexMetadata index : table.indexes)
                 addIndexToSchemaMutation(table, index, builder);
         }
+        return builder;
     }
 
     private static void addTableParamsToRowBuilder(TableParams params, Row.SimpleBuilder builder)
@@ -628,7 +647,7 @@ public final class SchemaKeyspace
             addUpdatedIndexToSchemaMutation(newTable, diff.rightValue(), builder);
     }
 
-    static Mutation.SimpleBuilder makeUpdateTableMutation(KeyspaceMetadata keyspace,
+    public static Mutation.SimpleBuilder makeUpdateTableMutation(KeyspaceMetadata keyspace,
                                                           TableMetadata oldTable,
                                                           TableMetadata newTable,
                                                           long timestamp)
@@ -660,7 +679,7 @@ public final class SchemaKeyspace
         return Maps.difference(beforeMap, afterMap);
     }
 
-    static Mutation.SimpleBuilder makeDropTableMutation(KeyspaceMetadata keyspace, TableMetadata table, long timestamp)
+    public static Mutation.SimpleBuilder makeDropTableMutation(KeyspaceMetadata keyspace, TableMetadata table, long timestamp)
     {
         // Include the serialized keyspace in case the target node missed a CREATE KEYSPACE migration (see CASSANDRA-5631).
         Mutation.SimpleBuilder builder = makeCreateKeyspaceMutation(keyspace.name, keyspace.params, timestamp);
@@ -668,9 +687,9 @@ public final class SchemaKeyspace
         return builder;
     }
 
-    private static void addDropTableToSchemaMutation(TableMetadata table, Mutation.SimpleBuilder builder)
+    public static Mutation.SimpleBuilder addDropTableToSchemaMutation(TableMetadata table, Mutation.SimpleBuilder builder)
     {
-        builder.update(Tables).row(table.name).delete();
+        builder.update(Schema.instance.schemaKeyspace.Tables).row(table.name).delete();
 
         for (ColumnMetadata column : table.columns())
             dropColumnFromSchemaMutation(table, column, builder);
@@ -683,6 +702,7 @@ public final class SchemaKeyspace
 
         for (IndexMetadata index : table.indexes)
             dropIndexFromSchemaMutation(table, index, builder);
+        return builder;
     }
 
     private static void addColumnToSchemaMutation(TableMetadata table, ColumnMetadata column, Mutation.SimpleBuilder builder)
@@ -691,7 +711,7 @@ public final class SchemaKeyspace
         if (type instanceof ReversedType)
             type = ((ReversedType) type).baseType;
 
-        builder.update(Columns)
+        builder.update(Schema.instance.schemaKeyspace.Columns)
                .row(table.name, column.name.toString())
                .add("column_name_bytes", column.name.bytes)
                .add("kind", column.kind.toString().toLowerCase())
@@ -703,12 +723,12 @@ public final class SchemaKeyspace
     private static void dropColumnFromSchemaMutation(TableMetadata table, ColumnMetadata column, Mutation.SimpleBuilder builder)
     {
         // Note: we do want to use name.toString(), not name.bytes directly for backward compatibility (For CQL3, this won't make a difference).
-        builder.update(Columns).row(table.name, column.name.toString()).delete();
+        builder.update(Schema.instance.schemaKeyspace.Columns).row(table.name, column.name.toString()).delete();
     }
 
     private static void addDroppedColumnToSchemaMutation(TableMetadata table, DroppedColumn column, Mutation.SimpleBuilder builder)
     {
-        builder.update(DroppedColumns)
+        builder.update(Schema.instance.schemaKeyspace.DroppedColumns)
                .row(table.name, column.column.name.toString())
                .add("dropped_time", new Date(TimeUnit.MICROSECONDS.toMillis(column.droppedTime)))
                .add("type", column.column.type.asCQL3Type().toString())
@@ -717,25 +737,26 @@ public final class SchemaKeyspace
 
     private static void dropDroppedColumnFromSchemaMutation(TableMetadata table, DroppedColumn column, Mutation.SimpleBuilder builder)
     {
-        builder.update(DroppedColumns).row(table.name, column.column.name.toString()).delete();
+        builder.update(Schema.instance.schemaKeyspace.DroppedColumns)
+               .row(table.name, column.column.name.toString()).delete();
     }
 
     private static void addTriggerToSchemaMutation(TableMetadata table, TriggerMetadata trigger, Mutation.SimpleBuilder builder)
     {
-        builder.update(Triggers)
+        builder.update(Schema.instance.schemaKeyspace.Triggers)
                .row(table.name, trigger.name)
                .add("options", Collections.singletonMap("class", trigger.classOption));
     }
 
     private static void dropTriggerFromSchemaMutation(TableMetadata table, TriggerMetadata trigger, Mutation.SimpleBuilder builder)
     {
-        builder.update(Triggers).row(table.name, trigger.name).delete();
+        builder.update(Schema.instance.schemaKeyspace.Triggers).row(table.name, trigger.name).delete();
     }
 
     private static void addViewToSchemaMutation(ViewMetadata view, boolean includeColumns, Mutation.SimpleBuilder builder)
     {
         TableMetadata table = view.metadata;
-        Row.SimpleBuilder rowBuilder = builder.update(Views)
+        Row.SimpleBuilder rowBuilder = builder.update(Schema.instance.schemaKeyspace.Views)
                                               .row(view.name())
                                               .add("include_all_columns", view.includeAllColumns)
                                               .add("base_table_id", view.baseTableId.asUUID())
@@ -757,7 +778,7 @@ public final class SchemaKeyspace
 
     private static void addDropViewToSchemaMutation(ViewMetadata view, Mutation.SimpleBuilder builder)
     {
-        builder.update(Views).row(view.name()).delete();
+        builder.update(Schema.instance.schemaKeyspace.Views).row(view.name()).delete();
 
         TableMetadata table = view.metadata;
         for (ColumnMetadata column : table.columns())
@@ -785,27 +806,29 @@ public final class SchemaKeyspace
 
     private static void addIndexToSchemaMutation(TableMetadata table, IndexMetadata index, Mutation.SimpleBuilder builder)
     {
-        builder.update(Indexes)
+        builder.update(Schema.instance.schemaKeyspace.Indexes)
                .row(table.name, index.name)
                .add("kind", index.kind.toString())
                .add("options", index.options);
     }
 
-    private static void dropIndexFromSchemaMutation(TableMetadata table, IndexMetadata index, Mutation.SimpleBuilder builder)
+    public static Mutation.SimpleBuilder dropIndexFromSchemaMutation(TableMetadata table, IndexMetadata index, Mutation.SimpleBuilder builder)
     {
-        builder.update(Indexes).row(table.name, index.name).delete();
+        builder.update(Schema.instance.schemaKeyspace.Indexes).row(table.name, index.name).delete();
+        return builder;
     }
 
-    private static void addUpdatedIndexToSchemaMutation(TableMetadata table,
+    public static Mutation.SimpleBuilder addUpdatedIndexToSchemaMutation(TableMetadata table,
                                                         IndexMetadata index,
                                                         Mutation.SimpleBuilder builder)
     {
         addIndexToSchemaMutation(table, index, builder);
+        return builder;
     }
 
     private static void addFunctionToSchemaMutation(UDFunction function, Mutation.SimpleBuilder builder)
     {
-        builder.update(Functions)
+        builder.update(Schema.instance.schemaKeyspace.Functions)
                .row(function.name().name, function.argumentsList())
                .add("body", function.body())
                .add("language", function.language())
@@ -828,12 +851,12 @@ public final class SchemaKeyspace
 
     private static void addDropFunctionToSchemaMutation(UDFunction function, Mutation.SimpleBuilder builder)
     {
-        builder.update(Functions).row(function.name().name, function.argumentsList()).delete();
+        builder.update(Schema.instance.schemaKeyspace.Functions).row(function.name().name, function.argumentsList()).delete();
     }
 
     private static void addAggregateToSchemaMutation(UDAggregate aggregate, Mutation.SimpleBuilder builder)
     {
-        builder.update(Aggregates)
+        builder.update(Schema.instance.schemaKeyspace.Aggregates)
                .row(aggregate.name().name, aggregate.argumentsList())
                .add("return_type", aggregate.returnType().asCQL3Type().toString())
                .add("state_func", aggregate.stateFunction().name().name)
@@ -847,7 +870,7 @@ public final class SchemaKeyspace
 
     private static void addDropAggregateToSchemaMutation(UDAggregate aggregate, Mutation.SimpleBuilder builder)
     {
-        builder.update(Aggregates).row(aggregate.name().name, aggregate.argumentsList()).delete();
+        builder.update(Schema.instance.schemaKeyspace.Aggregates).row(aggregate.name().name, aggregate.argumentsList()).delete();
     }
 
     /*

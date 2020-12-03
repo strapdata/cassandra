@@ -39,6 +39,11 @@ public final class CQLTypeParser
 
     public static AbstractType<?> parse(String keyspace, String unparsed, Types userTypes)
     {
+        return parse(Schema.instance.getOrCreateKeyspaceMetadata(keyspace), unparsed, userTypes);
+    }
+
+    public static AbstractType<?> parse(KeyspaceMetadata keyspace, String unparsed, Types userTypes)
+    {
         String lowercased = unparsed.toLowerCase();
 
         // fast path for the common case of a primitive type

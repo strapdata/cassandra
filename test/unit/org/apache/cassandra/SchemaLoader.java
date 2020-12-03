@@ -214,24 +214,25 @@ public class SchemaLoader
                              + "v2 int"
                              + ")";
         // CQLKeyspace
-        schema.add(KeyspaceMetadata.create(ks_cql, KeyspaceParams.simple(1), Tables.of(
+        KeyspaceMetadata ksm1 = KeyspaceMetadata.create(ks_cql, KeyspaceParams.simple(1));
+        schema.add(ksm1.withSwapped(Tables.of(
 
         // Column Families
-        CreateTableStatement.parse(simpleTable, ks_cql).build(),
+        CreateTableStatement.parse(simpleTable, ksm1).build(),
 
         CreateTableStatement.parse("CREATE TABLE table2 ("
                                    + "k text,"
                                    + "c text,"
                                    + "v text,"
-                                   + "PRIMARY KEY (k, c))", ks_cql)
+                                   + "PRIMARY KEY (k, c))", ksm1)
                             .build()
         )));
 
-        schema.add(KeyspaceMetadata.create(ks_cql_replicated, KeyspaceParams.simple(3),
-                                           Tables.of(CreateTableStatement.parse(simpleTable, ks_cql_replicated).build())));
+        KeyspaceMetadata ksm2 = KeyspaceMetadata.create(ks_cql_replicated, KeyspaceParams.simple(3));
+        schema.add(ksm2.withSwapped(Tables.of(CreateTableStatement.parse(simpleTable, ksm2).build())));
 
-        schema.add(KeyspaceMetadata.create(ks_with_transient, KeyspaceParams.simple("3/1"),
-                                           Tables.of(CreateTableStatement.parse(simpleTable, ks_with_transient).build())));
+        KeyspaceMetadata ksm3 = KeyspaceMetadata.create(ks_with_transient, KeyspaceParams.simple("3/1"));
+        schema.add(ksm3.withSwapped(Tables.of(CreateTableStatement.parse(simpleTable, ksm3).build())));
 
         if (DatabaseDescriptor.getPartitioner() instanceof Murmur3Partitioner)
         {
@@ -250,18 +251,40 @@ public class SchemaLoader
             useCompression(schema);
     }
 
-    public static void createKeyspace(String name, KeyspaceParams params)
+    public static KeyspaceMetadata createKeyspace(String name, KeyspaceParams params)
     {
-        MigrationManager.announceNewKeyspace(KeyspaceMetadata.create(name, params, Tables.of()), true);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(name, params, Tables.of());
+        MigrationManager.announceNewKeyspace(ksm, true);
+        return ksm;
     }
 
-    public static void createKeyspace(String name, KeyspaceParams params, TableMetadata.Builder... builders)
+    public static KeyspaceMetadata createKeyspace(String name, KeyspaceParams params, TableMetadata.Builder... builders)
     {
         Tables.Builder tables = Tables.builder();
         for (TableMetadata.Builder builder : builders)
             tables.add(builder.build());
 
-        MigrationManager.announceNewKeyspace(KeyspaceMetadata.create(name, params, tables.build()), true);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(name, params, tables.build());
+        MigrationManager.announceNewKeyspace(ksm, true);
+        return ksm;
+    }
+
+    public static KeyspaceMetadata createKeyspace(KeyspaceMetadata ksm, TableMetadata.Builder... builders)
+    {
+        Tables.Builder tables = Tables.builder();
+        for (TableMetadata.Builder builder : builders)
+            tables.add(builder.build());
+
+        KeyspaceMetadata ksm2 = ksm.withSwapped(tables.build());
+        MigrationManager.announceNewKeyspace(ksm2, true);
+        return ksm2;
+    }
+
+    public static KeyspaceMetadata createKeyspace(KeyspaceMetadata ksm, TableMetadata... tableMetadata)
+    {
+        KeyspaceMetadata ksm2 = ksm.withSwapped(Tables.of(tableMetadata));
+        MigrationManager.announceNewKeyspace(ksm2, true);
+        return ksm2;
     }
 
     public static void createKeyspace(String name, KeyspaceParams params, TableMetadata... tables)
@@ -280,7 +303,6 @@ public class SchemaLoader
         DatabaseDescriptor.setAuthenticator(authenticator);
         DatabaseDescriptor.setAuthorizer(authorizer);
         DatabaseDescriptor.setNetworkAuthorizer(networkAuthorizer);
-        MigrationManager.announceNewKeyspace(AuthKeyspace.metadata(), true);
         DatabaseDescriptor.getRoleManager().setup();
         DatabaseDescriptor.getAuthenticator().setup();
         DatabaseDescriptor.getAuthorizer().setup();

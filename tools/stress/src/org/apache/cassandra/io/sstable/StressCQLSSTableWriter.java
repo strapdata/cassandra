@@ -293,7 +293,7 @@ public class StressCQLSSTableWriter implements Closeable
     {
         int size = Math.min(values.size(), boundNames.size());
         List<ByteBuffer> rawValues = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) 
+        for (int i = 0; i < size; i++)
         {
             ColumnSpecification spec = boundNames.get(i);
             rawValues.add(values.get(spec.name.toString()));
@@ -606,7 +606,7 @@ public class StressCQLSSTableWriter implements Closeable
             statement.validate(state);
 
             //Build metadata with a portable tableId
-            tableMetadata = statement.builder(ksm.types)
+            tableMetadata = statement.builder(ksm, ksm.types)
                                      .id(deterministicId(schemaStatement.keyspace(), schemaStatement.table()))
                                      .build();
 

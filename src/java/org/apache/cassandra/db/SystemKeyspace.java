@@ -31,6 +31,7 @@ import javax.management.openmbean.TabularData;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.SetMultimap;
@@ -77,10 +78,6 @@ import static org.apache.cassandra.locator.Replica.transientReplica;
 
 public final class SystemKeyspace
 {
-    private SystemKeyspace()
-    {
-    }
-
     private static final Logger logger = LoggerFactory.getLogger(SystemKeyspace.class);
 
     // Used to indicate that there was a previous version written to the legacy (pre 1.2)
@@ -117,281 +114,285 @@ public final class SystemKeyspace
     @Deprecated public static final String LEGACY_SIZE_ESTIMATES = "size_estimates";
 
 
-    public static final TableMetadata Batches =
-        parse(BATCHES,
-              "batches awaiting replay",
-              "CREATE TABLE %s ("
-              + "id timeuuid,"
-              + "mutations list<blob>,"
-              + "version int,"
-              + "PRIMARY KEY ((id)))")
-              .partitioner(new LocalPartitioner(TimeUUIDType.instance))
-              .compaction(CompactionParams.stcs(singletonMap("min_threshold", "2")))
-              .build();
+    public final TableMetadata Batches;
 
-    private static final TableMetadata Paxos =
-        parse(PAXOS,
-                "in-progress paxos proposals",
-                "CREATE TABLE %s ("
-                + "row_key blob,"
-                + "cf_id UUID,"
-                + "in_progress_ballot timeuuid,"
-                + "most_recent_commit blob,"
-                + "most_recent_commit_at timeuuid,"
-                + "most_recent_commit_version int,"
-                + "proposal blob,"
-                + "proposal_ballot timeuuid,"
-                + "proposal_version int,"
-                + "PRIMARY KEY ((row_key), cf_id))")
-                .compaction(CompactionParams.lcs(emptyMap()))
-                .build();
+    private final TableMetadata Paxos;
 
-    private static final TableMetadata BuiltIndexes =
-        parse(BUILT_INDEXES,
-              "built column indexes",
-              "CREATE TABLE \"%s\" ("
-              + "table_name text," // table_name here is the name of the keyspace - don't be fooled
-              + "index_name text,"
-              + "value blob," // Table used to be compact in previous versions
-              + "PRIMARY KEY ((table_name), index_name)) ")
-              .build();
+    private final TableMetadata BuiltIndexes;
 
-    private static final TableMetadata Local =
-        parse(LOCAL,
-                "information about the local node",
-                "CREATE TABLE %s ("
-                + "key text,"
-                + "bootstrapped text,"
-                + "broadcast_address inet,"
-                + "broadcast_port int,"
-                + "cluster_name text,"
-                + "cql_version text,"
-                + "data_center text,"
-                + "gossip_generation int,"
-                + "host_id uuid,"
-                + "listen_address inet,"
-                + "listen_port int,"
-                + "native_protocol_version text,"
-                + "partitioner text,"
-                + "rack text,"
-                + "release_version text,"
-                + "rpc_address inet,"
-                + "rpc_port int,"
-                + "schema_version uuid,"
-                + "tokens set<varchar>,"
-                + "truncated_at map<uuid, blob>,"
-                + "PRIMARY KEY ((key)))"
-                ).recordDeprecatedSystemColumn("thrift_version", UTF8Type.instance)
-                .build();
+    private final TableMetadata Local;
 
-    private static final TableMetadata PeersV2 =
-        parse(PEERS_V2,
-                "information about known peers in the cluster",
-                "CREATE TABLE %s ("
-                + "peer inet,"
-                + "peer_port int,"
-                + "data_center text,"
-                + "host_id uuid,"
-                + "preferred_ip inet,"
-                + "preferred_port int,"
-                + "rack text,"
-                + "release_version text,"
-                + "native_address inet,"
-                + "native_port int,"
-                + "schema_version uuid,"
-                + "tokens set<varchar>,"
-                + "PRIMARY KEY ((peer), peer_port))")
-                .build();
+    private final TableMetadata PeersV2;
 
-    private static final TableMetadata PeerEventsV2 =
-        parse(PEER_EVENTS_V2,
-                "events related to peers",
-                "CREATE TABLE %s ("
-                + "peer inet,"
-                + "peer_port int,"
-                + "hints_dropped map<uuid, int>,"
-                + "PRIMARY KEY ((peer), peer_port))")
-                .build();
+    private final TableMetadata PeerEventsV2;
 
-    private static final TableMetadata CompactionHistory =
-        parse(COMPACTION_HISTORY,
-                "week-long compaction history",
-                "CREATE TABLE %s ("
-                + "id uuid,"
-                + "bytes_in bigint,"
-                + "bytes_out bigint,"
-                + "columnfamily_name text,"
-                + "compacted_at timestamp,"
-                + "keyspace_name text,"
-                + "rows_merged map<int, bigint>,"
-                + "PRIMARY KEY ((id)))")
-                .defaultTimeToLive((int) TimeUnit.DAYS.toSeconds(7))
-                .build();
+    private final TableMetadata CompactionHistory;
 
-    private static final TableMetadata SSTableActivity =
-        parse(SSTABLE_ACTIVITY,
-                "historic sstable read rates",
-                "CREATE TABLE %s ("
-                + "keyspace_name text,"
-                + "columnfamily_name text,"
-                + "generation int,"
-                + "rate_120m double,"
-                + "rate_15m double,"
-                + "PRIMARY KEY ((keyspace_name, columnfamily_name, generation)))")
-                .build();
+    private final TableMetadata SSTableActivity;
 
     @Deprecated
-    private static final TableMetadata LegacySizeEstimates =
-        parse(LEGACY_SIZE_ESTIMATES,
-              "per-table primary range size estimates, table is deprecated in favor of " + TABLE_ESTIMATES,
-                "CREATE TABLE %s ("
-                + "keyspace_name text,"
-                + "table_name text,"
-                + "range_start text,"
-                + "range_end text,"
-                + "mean_partition_size bigint,"
-                + "partitions_count bigint,"
-                + "PRIMARY KEY ((keyspace_name), table_name, range_start, range_end))")
-                .build();
+    private final TableMetadata LegacySizeEstimates;
 
-    private static final TableMetadata TableEstimates =
-        parse(TABLE_ESTIMATES,
-              "per-table range size estimates",
-              "CREATE TABLE %s ("
-               + "keyspace_name text,"
-               + "table_name text,"
-               + "range_type text,"
-               + "range_start text,"
-               + "range_end text,"
-               + "mean_partition_size bigint,"
-               + "partitions_count bigint,"
-               + "PRIMARY KEY ((keyspace_name), table_name, range_type, range_start, range_end))")
-               .build();
+    private final TableMetadata TableEstimates;
 
-    private static final TableMetadata AvailableRangesV2 =
-    parse(AVAILABLE_RANGES_V2,
-          "available keyspace/ranges during bootstrap/replace that are ready to be served",
-          "CREATE TABLE %s ("
-          + "keyspace_name text,"
-          + "full_ranges set<blob>,"
-          + "transient_ranges set<blob>,"
-          + "PRIMARY KEY ((keyspace_name)))")
-    .build();
+    private final TableMetadata AvailableRangesV2;
 
-    private static final TableMetadata TransferredRangesV2 =
-        parse(TRANSFERRED_RANGES_V2,
-                "record of transferred ranges for streaming operation",
-                "CREATE TABLE %s ("
-                + "operation text,"
-                + "peer inet,"
-                + "peer_port int,"
-                + "keyspace_name text,"
-                + "ranges set<blob>,"
-                + "PRIMARY KEY ((operation, keyspace_name), peer, peer_port))")
-                .build();
+    private final TableMetadata TransferredRangesV2;
 
-    private static final TableMetadata ViewBuildsInProgress =
-        parse(VIEW_BUILDS_IN_PROGRESS,
-              "views builds current progress",
-              "CREATE TABLE %s ("
-              + "keyspace_name text,"
-              + "view_name text,"
-              + "start_token varchar,"
-              + "end_token varchar,"
-              + "last_token varchar,"
-              + "keys_built bigint,"
-              + "PRIMARY KEY ((keyspace_name), view_name, start_token, end_token))")
-              .build();
+    private final TableMetadata ViewBuildsInProgress;
 
-    private static final TableMetadata BuiltViews =
-        parse(BUILT_VIEWS,
-                "built views",
-                "CREATE TABLE %s ("
-                + "keyspace_name text,"
-                + "view_name text,"
-                + "status_replicated boolean,"
-                + "PRIMARY KEY ((keyspace_name), view_name))")
-                .build();
+    private final TableMetadata BuiltViews;
 
-    private static final TableMetadata PreparedStatements =
-        parse(PREPARED_STATEMENTS,
-                "prepared statements",
-                "CREATE TABLE %s ("
-                + "prepared_id blob,"
-                + "logged_keyspace text,"
-                + "query_string text,"
-                + "PRIMARY KEY ((prepared_id)))")
-                .build();
+    private final TableMetadata PreparedStatements;
 
-    private static final TableMetadata Repairs =
-        parse(REPAIRS,
-          "repairs",
-          "CREATE TABLE %s ("
-          + "parent_id timeuuid, "
-          + "started_at timestamp, "
-          + "last_update timestamp, "
-          + "repaired_at timestamp, "
-          + "state int, "
-          + "coordinator inet, "
-          + "coordinator_port int,"
-          + "participants set<inet>,"
-          + "participants_wp set<text>,"
-          + "ranges set<blob>, "
-          + "cfids set<uuid>, "
-          + "PRIMARY KEY (parent_id))").build();
+    private final TableMetadata Repairs;
 
     @Deprecated
-    private static final TableMetadata LegacyPeers =
-        parse(LEGACY_PEERS,
-            "information about known peers in the cluster",
-            "CREATE TABLE %s ("
-            + "peer inet,"
-            + "data_center text,"
-            + "host_id uuid,"
-            + "preferred_ip inet,"
-            + "rack text,"
-            + "release_version text,"
-            + "rpc_address inet,"
-            + "schema_version uuid,"
-            + "tokens set<varchar>,"
-            + "PRIMARY KEY ((peer)))")
-            .build();
+    private final TableMetadata LegacyPeers;
 
     @Deprecated
-    private static final TableMetadata LegacyPeerEvents =
-        parse(LEGACY_PEER_EVENTS,
-            "events related to peers",
-            "CREATE TABLE %s ("
-            + "peer inet,"
-            + "hints_dropped map<uuid, int>,"
-            + "PRIMARY KEY ((peer)))")
-            .build();
+    private final TableMetadata LegacyPeerEvents;
 
     @Deprecated
-    private static final TableMetadata LegacyTransferredRanges =
-        parse(LEGACY_TRANSFERRED_RANGES,
-            "record of transferred ranges for streaming operation",
-            "CREATE TABLE %s ("
-            + "operation text,"
-            + "peer inet,"
-            + "keyspace_name text,"
-            + "ranges set<blob>,"
-            + "PRIMARY KEY ((operation, keyspace_name), peer))")
-            .build();
+    private final TableMetadata LegacyTransferredRanges;
 
     @Deprecated
-    private static final TableMetadata LegacyAvailableRanges =
-        parse(LEGACY_AVAILABLE_RANGES,
-              "available keyspace/ranges during bootstrap/replace that are ready to be served",
-              "CREATE TABLE %s ("
-              + "keyspace_name text,"
-              + "ranges set<blob>,"
-              + "PRIMARY KEY ((keyspace_name)))")
-        .build();
+    private final TableMetadata LegacyAvailableRanges;
 
-    private static TableMetadata.Builder parse(String table, String description, String cql)
+    public SystemKeyspace(KeyspaceMetadata ksm)
     {
-        return CreateTableStatement.parse(format(cql, table), SchemaConstants.SYSTEM_KEYSPACE_NAME)
+        this.Batches = parse(ksm, BATCHES,
+                             "batches awaiting replay",
+                             "CREATE TABLE %s ("
+                             + "id timeuuid,"
+                             + "mutations list<blob>,"
+                             + "version int,"
+                             + "PRIMARY KEY ((id)))")
+                       .partitioner(new LocalPartitioner(TimeUUIDType.instance))
+                       .compaction(CompactionParams.stcs(singletonMap("min_threshold", "2")))
+                       .build();
+        this.Paxos = parse(ksm, PAXOS,
+                           "in-progress paxos proposals",
+                           "CREATE TABLE %s ("
+                           + "row_key blob,"
+                           + "cf_id UUID,"
+                           + "in_progress_ballot timeuuid,"
+                           + "most_recent_commit blob,"
+                           + "most_recent_commit_at timeuuid,"
+                           + "most_recent_commit_version int,"
+                           + "proposal blob,"
+                           + "proposal_ballot timeuuid,"
+                           + "proposal_version int,"
+                           + "PRIMARY KEY ((row_key), cf_id))")
+                     .compaction(CompactionParams.lcs(emptyMap()))
+                     .build();
+        this.BuiltIndexes = parse(ksm, BUILT_INDEXES,
+                                  "built column indexes",
+                                  "CREATE TABLE \"%s\" ("
+                                  + "table_name text," // table_name here is the name of the keyspace - don't be fooled
+                                  + "index_name text,"
+                                  + "value blob," // Table used to be compact in previous versions
+                                  + "PRIMARY KEY ((table_name), index_name)) ")
+                            .build();
+        this.Local = parse(ksm, LOCAL,
+                           "information about the local node",
+                           "CREATE TABLE %s ("
+                           + "key text,"
+                           + "bootstrapped text,"
+                           + "broadcast_address inet,"
+                           + "broadcast_port int,"
+                           + "cluster_name text,"
+                           + "cql_version text,"
+                           + "data_center text,"
+                           + "gossip_generation int,"
+                           + "host_id uuid,"
+                           + "listen_address inet,"
+                           + "listen_port int,"
+                           + "native_protocol_version text,"
+                           + "partitioner text,"
+                           + "rack text,"
+                           + "release_version text,"
+                           + "rpc_address inet,"
+                           + "rpc_port int,"
+                           + "schema_version uuid,"
+                           + "tokens set<varchar>,"
+                           + "truncated_at map<uuid, blob>,"
+                           + "PRIMARY KEY ((key)))"
+        ).recordDeprecatedSystemColumn("thrift_version", UTF8Type.instance)
+         .build();
+        this.PeersV2 = parse(ksm, PEERS_V2,
+                             "information about known peers in the cluster",
+                             "CREATE TABLE %s ("
+                             + "peer inet,"
+                             + "peer_port int,"
+                             + "data_center text,"
+                             + "host_id uuid,"
+                             + "preferred_ip inet,"
+                             + "preferred_port int,"
+                             + "rack text,"
+                             + "release_version text,"
+                             + "native_address inet,"
+                             + "native_port int,"
+                             + "schema_version uuid,"
+                             + "tokens set<varchar>,"
+                             + "PRIMARY KEY ((peer), peer_port))")
+                       .build();
+        this.PeerEventsV2 = parse(ksm, PEER_EVENTS_V2,
+                                  "events related to peers",
+                                  "CREATE TABLE %s ("
+                                  + "peer inet,"
+                                  + "peer_port int,"
+                                  + "hints_dropped map<uuid, int>,"
+                                  + "PRIMARY KEY ((peer), peer_port))")
+                            .build();
+        this.CompactionHistory = parse(ksm, COMPACTION_HISTORY,
+                                       "week-long compaction history",
+                                       "CREATE TABLE %s ("
+                                       + "id uuid,"
+                                       + "bytes_in bigint,"
+                                       + "bytes_out bigint,"
+                                       + "columnfamily_name text,"
+                                       + "compacted_at timestamp,"
+                                       + "keyspace_name text,"
+                                       + "rows_merged map<int, bigint>,"
+                                       + "PRIMARY KEY ((id)))")
+                                 .defaultTimeToLive((int) TimeUnit.DAYS.toSeconds(7))
+                                 .build();
+        this.SSTableActivity = parse(ksm, SSTABLE_ACTIVITY,
+                                     "historic sstable read rates",
+                                     "CREATE TABLE %s ("
+                                     + "keyspace_name text,"
+                                     + "columnfamily_name text,"
+                                     + "generation int,"
+                                     + "rate_120m double,"
+                                     + "rate_15m double,"
+                                     + "PRIMARY KEY ((keyspace_name, columnfamily_name, generation)))")
+                               .build();
+        this.LegacySizeEstimates = parse(ksm, LEGACY_SIZE_ESTIMATES,
+                                         "per-table primary range size estimates, table is deprecated in favor of " + TABLE_ESTIMATES,
+                                         "CREATE TABLE %s ("
+                                         + "keyspace_name text,"
+                                         + "table_name text,"
+                                         + "range_start text,"
+                                         + "range_end text,"
+                                         + "mean_partition_size bigint,"
+                                         + "partitions_count bigint,"
+                                         + "PRIMARY KEY ((keyspace_name), table_name, range_start, range_end))")
+                                   .build();
+        this.TableEstimates = parse(ksm, TABLE_ESTIMATES,
+                                    "per-table range size estimates",
+                                    "CREATE TABLE %s ("
+                                    + "keyspace_name text,"
+                                    + "table_name text,"
+                                    + "range_type text,"
+                                    + "range_start text,"
+                                    + "range_end text,"
+                                    + "mean_partition_size bigint,"
+                                    + "partitions_count bigint,"
+                                    + "PRIMARY KEY ((keyspace_name), table_name, range_type, range_start, range_end))")
+                              .build();
+        this.AvailableRangesV2 = parse(ksm, AVAILABLE_RANGES_V2,
+                                       "available keyspace/ranges during bootstrap/replace that are ready to be served",
+                                       "CREATE TABLE %s ("
+                                       + "keyspace_name text,"
+                                       + "full_ranges set<blob>,"
+                                       + "transient_ranges set<blob>,"
+                                       + "PRIMARY KEY ((keyspace_name)))")
+                                 .build();
+        this.TransferredRangesV2 = parse(ksm, TRANSFERRED_RANGES_V2,
+                                         "record of transferred ranges for streaming operation",
+                                         "CREATE TABLE %s ("
+                                         + "operation text,"
+                                         + "peer inet,"
+                                         + "peer_port int,"
+                                         + "keyspace_name text,"
+                                         + "ranges set<blob>,"
+                                         + "PRIMARY KEY ((operation, keyspace_name), peer, peer_port))")
+                                   .build();
+        this.ViewBuildsInProgress = parse(ksm, VIEW_BUILDS_IN_PROGRESS,
+                                          "views builds current progress",
+                                          "CREATE TABLE %s ("
+                                          + "keyspace_name text,"
+                                          + "view_name text,"
+                                          + "start_token varchar,"
+                                          + "end_token varchar,"
+                                          + "last_token varchar,"
+                                          + "keys_built bigint,"
+                                          + "PRIMARY KEY ((keyspace_name), view_name, start_token, end_token))")
+                                    .build();
+        this.BuiltViews = parse(ksm, BUILT_VIEWS,
+                                "built views",
+                                "CREATE TABLE %s ("
+                                + "keyspace_name text,"
+                                + "view_name text,"
+                                + "status_replicated boolean,"
+                                + "PRIMARY KEY ((keyspace_name), view_name))")
+                          .build();
+        this.PreparedStatements = parse(ksm, PREPARED_STATEMENTS,
+                                        "prepared statements",
+                                        "CREATE TABLE %s ("
+                                        + "prepared_id blob,"
+                                        + "logged_keyspace text,"
+                                        + "query_string text,"
+                                        + "PRIMARY KEY ((prepared_id)))")
+                                  .build();
+        this.Repairs = parse(ksm, REPAIRS,
+                             "repairs",
+                             "CREATE TABLE %s ("
+                             + "parent_id timeuuid, "
+                             + "started_at timestamp, "
+                             + "last_update timestamp, "
+                             + "repaired_at timestamp, "
+                             + "state int, "
+                             + "coordinator inet, "
+                             + "coordinator_port int,"
+                             + "participants set<inet>,"
+                             + "participants_wp set<text>,"
+                             + "ranges set<blob>, "
+                             + "cfids set<uuid>, "
+                             + "PRIMARY KEY (parent_id))").build();
+        this.LegacyPeers = parse(ksm, LEGACY_PEERS,
+                                 "information about known peers in the cluster",
+                                 "CREATE TABLE %s ("
+                                 + "peer inet,"
+                                 + "data_center text,"
+                                 + "host_id uuid,"
+                                 + "preferred_ip inet,"
+                                 + "rack text,"
+                                 + "release_version text,"
+                                 + "rpc_address inet,"
+                                 + "schema_version uuid,"
+                                 + "tokens set<varchar>,"
+                                 + "PRIMARY KEY ((peer)))")
+                           .build();
+        this.LegacyPeerEvents = parse(ksm, LEGACY_PEER_EVENTS,
+                                      "events related to peers",
+                                      "CREATE TABLE %s ("
+                                      + "peer inet,"
+                                      + "hints_dropped map<uuid, int>,"
+                                      + "PRIMARY KEY ((peer)))")
+                                .build();
+        this.LegacyTransferredRanges = parse(ksm, LEGACY_TRANSFERRED_RANGES,
+                                             "record of transferred ranges for streaming operation",
+                                             "CREATE TABLE %s ("
+                                             + "operation text,"
+                                             + "peer inet,"
+                                             + "keyspace_name text,"
+                                             + "ranges set<blob>,"
+                                             + "PRIMARY KEY ((operation, keyspace_name), peer))")
+                                       .build();
+        this.LegacyAvailableRanges = parse(ksm, LEGACY_AVAILABLE_RANGES,
+                                           "available keyspace/ranges during bootstrap/replace that are ready to be served",
+                                           "CREATE TABLE %s ("
+                                           + "keyspace_name text,"
+                                           + "ranges set<blob>,"
+                                           + "PRIMARY KEY ((keyspace_name)))")
+                                     .build();
+    }
+
+    private TableMetadata.Builder parse(KeyspaceMetadata ksm, String table, String description, String cql)
+    {
+        return CreateTableStatement.parse(format(cql, table), ksm)
                                    .id(TableId.forSystemTable(SchemaConstants.SYSTEM_KEYSPACE_NAME, table))
                                    .gcGraceSeconds(0)
                                    .memtableFlushPeriod((int) TimeUnit.HOURS.toMillis(1))
@@ -400,10 +401,10 @@ public final class SystemKeyspace
 
     public static KeyspaceMetadata metadata()
     {
-        return KeyspaceMetadata.create(SchemaConstants.SYSTEM_KEYSPACE_NAME, KeyspaceParams.local(), tables(), Views.none(), Types.none(), functions());
+        return Schema.instance.getKeyspaceMetadata(SchemaConstants.SYSTEM_KEYSPACE_NAME);
     }
 
-    private static Tables tables()
+    public Tables tables()
     {
         return Tables.of(BuiltIndexes,
                          Batches,
@@ -427,7 +428,7 @@ public final class SystemKeyspace
                          Repairs);
     }
 
-    private static Functions functions()
+    public static Functions functions()
     {
         return Functions.builder()
                         .add(UuidFcts.all())
@@ -439,7 +440,7 @@ public final class SystemKeyspace
                         .build();
     }
 
-    private static volatile Map<TableId, Pair<CommitLogPosition, Long>> truncationRecords;
+    private volatile Map<TableId, Pair<CommitLogPosition, Long>> truncationRecords;
 
     public enum BootstrapState
     {
@@ -451,7 +452,7 @@ public final class SystemKeyspace
 
     public static void finishStartup()
     {
-        SchemaKeyspace.saveSystemKeyspacesSchema();
+        Schema.instance.schemaKeyspace.saveSystemKeyspacesSchema();
     }
 
     public static void persistLocalMetadata()
@@ -575,7 +576,7 @@ public final class SystemKeyspace
     public static void updateViewBuildStatus(String ksname, String viewName, Range<Token> range, Token lastToken, long keysBuilt)
     {
         String req = "INSERT INTO system.%s (keyspace_name, view_name, start_token, end_token, last_token, keys_built) VALUES (?, ?, ?, ?, ?, ?)";
-        Token.TokenFactory factory = ViewBuildsInProgress.partitioner.getTokenFactory();
+        Token.TokenFactory factory = Schema.instance.systemKeyspace.ViewBuildsInProgress.partitioner.getTokenFactory();
         executeInternal(format(req, VIEW_BUILDS_IN_PROGRESS),
                         ksname,
                         viewName,
@@ -588,7 +589,7 @@ public final class SystemKeyspace
     public static Map<Range<Token>, Pair<Token, Long>> getViewBuildStatus(String ksname, String viewName)
     {
         String req = "SELECT start_token, end_token, last_token, keys_built FROM system.%s WHERE keyspace_name = ? AND view_name = ?";
-        Token.TokenFactory factory = ViewBuildsInProgress.partitioner.getTokenFactory();
+        Token.TokenFactory factory = Schema.instance.systemKeyspace.ViewBuildsInProgress.partitioner.getTokenFactory();
         UntypedResultSet rs = executeInternal(format(req, VIEW_BUILDS_IN_PROGRESS), ksname, viewName);
 
         if (rs == null || rs.isEmpty())
@@ -613,7 +614,7 @@ public final class SystemKeyspace
     {
         String req = "UPDATE system.%s SET truncated_at = truncated_at + ? WHERE key = '%s'";
         executeInternal(format(req, LOCAL, LOCAL), truncationAsMapEntry(cfs, truncatedAt, position));
-        truncationRecords = null;
+        Schema.instance.systemKeyspace.truncationRecords = null;
         forceBlockingFlush(LOCAL);
     }
 
@@ -628,7 +629,7 @@ public final class SystemKeyspace
 
         String req = "DELETE truncated_at[?] from system.%s WHERE key = '%s'";
         executeInternal(format(req, LOCAL, LOCAL), id.asUUID());
-        truncationRecords = null;
+        Schema.instance.systemKeyspace.truncationRecords = null;
         forceBlockingFlush(LOCAL);
     }
 
@@ -660,9 +661,9 @@ public final class SystemKeyspace
 
     private static synchronized Pair<CommitLogPosition, Long> getTruncationRecord(TableId id)
     {
-        if (truncationRecords == null)
-            truncationRecords = readTruncationRecords();
-        return truncationRecords.get(id);
+        if (Schema.instance.systemKeyspace.truncationRecords == null)
+            Schema.instance.systemKeyspace.truncationRecords = readTruncationRecords();
+        return Schema.instance.systemKeyspace.truncationRecords.get(id);
     }
 
     private static Map<TableId, Pair<CommitLogPosition, Long>> readTruncationRecords()
@@ -1268,16 +1269,19 @@ public final class SystemKeyspace
     {
         long timestamp = FBUtilities.timestampMicros();
         int nowInSec = FBUtilities.nowInSeconds();
-        PartitionUpdate.Builder update = new PartitionUpdate.Builder(LegacySizeEstimates, UTF8Type.instance.decompose(keyspace), LegacySizeEstimates.regularAndStaticColumns(), estimates.size());
+        PartitionUpdate.Builder update = new PartitionUpdate.Builder(Schema.instance.systemKeyspace.LegacySizeEstimates,
+                                                                     UTF8Type.instance.decompose(keyspace),
+                                                                     Schema.instance.systemKeyspace.LegacySizeEstimates.regularAndStaticColumns(),
+                                                                     estimates.size());
         // delete all previous values with a single range tombstone.
-        update.add(new RangeTombstone(Slice.make(LegacySizeEstimates.comparator, table), new DeletionTime(timestamp - 1, nowInSec)));
+        update.add(new RangeTombstone(Slice.make(Schema.instance.systemKeyspace.LegacySizeEstimates.comparator, table), new DeletionTime(timestamp - 1, nowInSec)));
 
         // add a CQL row for each primary token range.
         for (Map.Entry<Range<Token>, Pair<Long, Long>> entry : estimates.entrySet())
         {
             Range<Token> range = entry.getKey();
             Pair<Long, Long> values = entry.getValue();
-            update.add(Rows.simpleBuilder(LegacySizeEstimates, table, range.left.toString(), range.right.toString())
+            update.add(Rows.simpleBuilder(Schema.instance.systemKeyspace.LegacySizeEstimates, table, range.left.toString(), range.right.toString())
                            .timestamp(timestamp)
                            .add("partitions_count", values.left)
                            .add("mean_partition_size", values.right)
@@ -1293,17 +1297,21 @@ public final class SystemKeyspace
     {
         long timestamp = FBUtilities.timestampMicros();
         int nowInSec = FBUtilities.nowInSeconds();
-        PartitionUpdate.Builder update = new PartitionUpdate.Builder(TableEstimates, UTF8Type.instance.decompose(keyspace), TableEstimates.regularAndStaticColumns(), estimates.size());
+        PartitionUpdate.Builder update = new PartitionUpdate.Builder(Schema.instance.systemKeyspace.TableEstimates,
+                                                                     UTF8Type.instance.decompose(keyspace),
+                                                                     Schema.instance.systemKeyspace.TableEstimates.regularAndStaticColumns(),
+                                                                     estimates.size());
 
         // delete all previous values with a single range tombstone.
-        update.add(new RangeTombstone(Slice.make(TableEstimates.comparator, table, type), new DeletionTime(timestamp - 1, nowInSec)));
+        update.add(new RangeTombstone(Slice.make(Schema.instance.systemKeyspace.TableEstimates.comparator, table, type),
+                                      new DeletionTime(timestamp - 1, nowInSec)));
 
         // add a CQL row for each primary token range.
         for (Map.Entry<Range<Token>, Pair<Long, Long>> entry : estimates.entrySet())
         {
             Range<Token> range = entry.getKey();
             Pair<Long, Long> values = entry.getValue();
-            update.add(Rows.simpleBuilder(TableEstimates, table, type, range.left.toString(), range.right.toString())
+            update.add(Rows.simpleBuilder(Schema.instance.systemKeyspace.TableEstimates, table, type, range.left.toString(), range.right.toString())
                            .timestamp(timestamp)
                            .add("partitions_count", values.left)
                            .add("mean_partition_size", values.right)
@@ -1320,9 +1328,9 @@ public final class SystemKeyspace
     public static void clearEstimates(String keyspace, String table)
     {
         String cqlFormat = "DELETE FROM %s WHERE keyspace_name = ? AND table_name = ?";
-        String cql = format(cqlFormat, LegacySizeEstimates.toString());
+        String cql = format(cqlFormat, Schema.instance.systemKeyspace.LegacySizeEstimates.toString());
         executeInternal(cql, keyspace, table);
-        cql = String.format(cqlFormat, TableEstimates.toString());
+        cql = String.format(cqlFormat, Schema.instance.systemKeyspace.TableEstimates.toString());
         executeInternal(cql, keyspace, table);
     }
 
@@ -1331,7 +1339,7 @@ public final class SystemKeyspace
      */
     public static void clearAllEstimates()
     {
-        for (TableMetadata table : Arrays.asList(LegacySizeEstimates, TableEstimates))
+        for (TableMetadata table : Arrays.asList(Schema.instance.systemKeyspace.LegacySizeEstimates, Schema.instance.systemKeyspace.TableEstimates))
         {
             String cql = String.format("TRUNCATE TABLE " + table.toString());
             executeInternal(cql);
@@ -1534,14 +1542,14 @@ public final class SystemKeyspace
     public static void writePreparedStatement(String loggedKeyspace, MD5Digest key, String cql)
     {
         executeInternal(format("INSERT INTO %s (logged_keyspace, prepared_id, query_string) VALUES (?, ?, ?)",
-                               PreparedStatements.toString()),
+                               Schema.instance.systemKeyspace.PreparedStatements.toString()),
                         loggedKeyspace, key.byteBuffer(), cql);
         logger.debug("stored prepared statement for logged keyspace '{}': '{}'", loggedKeyspace, cql);
     }
 
     public static void removePreparedStatement(MD5Digest key)
     {
-        executeInternal(format("DELETE FROM %s WHERE prepared_id = ?", PreparedStatements.toString()),
+        executeInternal(format("DELETE FROM %s WHERE prepared_id = ?", Schema.instance.systemKeyspace.PreparedStatements.toString()),
                         key.byteBuffer());
     }
 
@@ -1553,7 +1561,7 @@ public final class SystemKeyspace
 
     public static List<Pair<String, String>> loadPreparedStatements()
     {
-        String query = format("SELECT logged_keyspace, query_string FROM %s", PreparedStatements.toString());
+        String query = format("SELECT logged_keyspace, query_string FROM %s", Schema.instance.systemKeyspace.PreparedStatements.toString());
         UntypedResultSet resultSet = executeOnceInternal(query);
         List<Pair<String, String>> r = new ArrayList<>();
         for (UntypedResultSet.Row row : resultSet)

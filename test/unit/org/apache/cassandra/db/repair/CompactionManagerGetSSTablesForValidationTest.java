@@ -32,6 +32,7 @@ import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.schema.Schema;
@@ -83,8 +84,9 @@ public class CompactionManagerGetSSTablesForValidationTest
     public void setup() throws Exception
     {
         ks = "ks_" + System.currentTimeMillis();
-        TableMetadata cfm = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, tbl), ks).build();
-        SchemaLoader.createKeyspace(ks, KeyspaceParams.simple(1), cfm);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ks, KeyspaceParams.simple(1));
+        TableMetadata cfm = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, tbl), ksm).build();
+        SchemaLoader.createKeyspace(ksm, cfm);
         cfs = Schema.instance.getColumnFamilyStoreInstance(cfm.id);
     }
 

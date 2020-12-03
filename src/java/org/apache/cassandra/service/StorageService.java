@@ -991,7 +991,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @VisibleForTesting
     public void ensureTraceKeyspace()
     {
-        evolveSystemKeyspace(TraceKeyspace.metadata(), TraceKeyspace.GENERATION).ifPresent(MigrationManager::announce);
+        evolveSystemKeyspace(TraceKeyspace.metadata(), TraceKeyspace.GENERATION)
+            .ifPresent(MigrationManager::announce);
     }
 
     public static boolean isReplacingSameAddress()
@@ -1077,7 +1078,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         if (!authSetupCalled.getAndSet(true))
         {
             if (setUpSchema)
-                evolveSystemKeyspace(AuthKeyspace.metadata(), AuthKeyspace.GENERATION).ifPresent(MigrationManager::announce);
+                evolveSystemKeyspace(AuthKeyspace.metadata(), AuthKeyspace.GENERATION)
+                    .ifPresent(MigrationManager::announce);
 
             DatabaseDescriptor.getRoleManager().setup();
             DatabaseDescriptor.getAuthenticator().setup();
@@ -1098,9 +1100,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     {
         Collection<Mutation> changes = new ArrayList<>(3);
 
-        evolveSystemKeyspace(            TraceKeyspace.metadata(),             TraceKeyspace.GENERATION).ifPresent(changes::add);
+        evolveSystemKeyspace(TraceKeyspace.metadata(), TraceKeyspace.GENERATION).ifPresent(changes::add);
         evolveSystemKeyspace(SystemDistributedKeyspace.metadata(), SystemDistributedKeyspace.GENERATION).ifPresent(changes::add);
-        evolveSystemKeyspace(             AuthKeyspace.metadata(),              AuthKeyspace.GENERATION).ifPresent(changes::add);
+        evolveSystemKeyspace(AuthKeyspace.metadata(), AuthKeyspace.GENERATION).ifPresent(changes::add);
 
         if (!changes.isEmpty())
             MigrationManager.announce(changes);

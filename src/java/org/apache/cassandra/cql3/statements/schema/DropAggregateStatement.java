@@ -146,8 +146,9 @@ public final class DropAggregateStatement extends AlterSchemaStatement
 
     private List<AbstractType<?>> prepareArgumentTypes(Types types)
     {
+        KeyspaceMetadata keyspace = Schema.instance.getKeyspaceMetadataSafe(keyspaceName);
         return arguments.stream()
-                        .map(t -> t.prepare(keyspaceName, types))
+                        .map(t -> t.prepare(keyspace, types))
                         .map(CQL3Type::getType)
                         .collect(toList());
     }

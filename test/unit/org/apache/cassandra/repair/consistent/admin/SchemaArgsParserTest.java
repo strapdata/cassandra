@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
 import org.apache.cassandra.db.ColumnFamilyStore;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
@@ -46,9 +47,10 @@ public class SchemaArgsParserTest
     public static void setupClass()
     {
         SchemaLoader.prepareServer();
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(KEYSPACE, KeyspaceParams.simple(1));
         for (int i=0; i<NUM_TBL; i++)
-            cfm[i] = CreateTableStatement.parse("CREATE TABLE tbl" + i + " (k INT PRIMARY KEY, v INT)", KEYSPACE).build();
-        SchemaLoader.createKeyspace(KEYSPACE, KeyspaceParams.simple(1), cfm);
+            cfm[i] = CreateTableStatement.parse("CREATE TABLE tbl" + i + " (k INT PRIMARY KEY, v INT)", ksm).build();
+        SchemaLoader.createKeyspace(ksm, cfm);
         for (int i=0; i<NUM_TBL; i++)
             cfs[i] = Schema.instance.getColumnFamilyStoreInstance(cfm[i].id);
     }

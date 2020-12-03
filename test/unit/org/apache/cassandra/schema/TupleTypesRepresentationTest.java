@@ -109,12 +109,13 @@ public class TupleTypesRepresentationTest
             this.multiCell = multiCell;
             this.cqlValue = cqlValue;
 
+            KeyspaceMetadata ksm = KeyspaceMetadata.create(keyspace,  KeyspaceParams.local());
             cqlType = CQLFragmentParser.parseAny(CqlParser::comparatorType, cqlTypeString, "non-dropped type")
-                                       .prepare(keyspace, types);
+                                       .prepare(ksm, types);
             type = cqlType.getType();
 
             droppedCqlType = CQLFragmentParser.parseAny(CqlParser::comparatorType, droppedCqlTypeString, "dropped type")
-                                              .prepare(keyspace, types);
+                                              .prepare(ksm, types);
             // NOTE: TupleType is *always* parsed as frozen, but never toString()'d with the surrounding FrozenType
             droppedType = droppedCqlType.getType();
         }

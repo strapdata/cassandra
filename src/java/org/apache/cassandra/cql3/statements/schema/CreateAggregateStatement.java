@@ -109,9 +109,9 @@ public final class CreateAggregateStatement extends AlterSchemaStatement
 
         List<AbstractType<?>> argumentTypes =
             rawArgumentTypes.stream()
-                            .map(t -> t.prepare(keyspaceName, keyspace.types).getType())
+                            .map(t -> t.prepare(keyspace, keyspace.types).getType())
                             .collect(toList());
-        AbstractType<?> stateType = rawStateType.prepare(keyspaceName, keyspace.types).getType();
+        AbstractType<?> stateType = rawStateType.prepare(keyspace, keyspace.types).getType();
         List<AbstractType<?>> stateFunctionArguments = Lists.newArrayList(concat(singleton(stateType), argumentTypes));
 
         Function stateFunction =

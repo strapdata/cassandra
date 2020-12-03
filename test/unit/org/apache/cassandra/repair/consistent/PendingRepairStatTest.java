@@ -43,6 +43,7 @@ import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.repair.AbstractRepairTest;
 import org.apache.cassandra.repair.consistent.LocalSessionTest.InstrumentedLocalSessions;
 import org.apache.cassandra.repair.consistent.admin.PendingStats;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
@@ -76,8 +77,9 @@ public class PendingRepairStatTest extends AbstractRepairTest
     public static void setupClass()
     {
         SchemaLoader.prepareServer();
-        cfm = CreateTableStatement.parse("CREATE TABLE tbl (k INT PRIMARY KEY, v INT)", "coordinatorsessiontest").build();
-        SchemaLoader.createKeyspace("coordinatorsessiontest", KeyspaceParams.simple(1), cfm);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create("coordinatorsessiontest", KeyspaceParams.simple(1));
+        cfm = CreateTableStatement.parse("CREATE TABLE tbl (k INT PRIMARY KEY, v INT)", ksm).build();
+        SchemaLoader.createKeyspace(ksm, cfm);
         cfs = Schema.instance.getColumnFamilyStoreInstance(cfm.id);
     }
 

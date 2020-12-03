@@ -222,10 +222,10 @@ public abstract  class AbstractReadRepairTest
         String ddl = String.format("CREATE TABLE tbl (k int primary key, v text) WITH read_repair='%s'",
                                    repairStrategy.toString().toLowerCase());
 
-        cfm = CreateTableStatement.parse(ddl, ksName).build();
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(3));
+        cfm = CreateTableStatement.parse(ddl, ksm).build();
         assert cfm.params.readRepair == repairStrategy;
-        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(3), Tables.of(cfm));
-        MigrationManager.announceNewKeyspace(ksm, false);
+        MigrationManager.announceNewKeyspace(ksm.withSwapped(Tables.of(cfm)), false);
 
         ks = Keyspace.open(ksName);
         cfs = ks.getColumnFamilyStore("tbl");

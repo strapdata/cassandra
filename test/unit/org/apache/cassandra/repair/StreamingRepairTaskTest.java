@@ -29,6 +29,7 @@ import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.repair.messages.SyncRequest;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
@@ -54,8 +55,9 @@ public class StreamingRepairTaskTest extends AbstractRepairTest
     public void setup()
     {
         ks = "ks_" + System.currentTimeMillis();
-        cfm = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, tbl), ks).build();
-        SchemaLoader.createKeyspace(ks, KeyspaceParams.simple(1), cfm);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ks, KeyspaceParams.simple(1));
+        cfm = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, tbl), ksm).build();
+        SchemaLoader.createKeyspace(ksm, cfm);
         cfs = Schema.instance.getColumnFamilyStoreInstance(cfm.id);
     }
 

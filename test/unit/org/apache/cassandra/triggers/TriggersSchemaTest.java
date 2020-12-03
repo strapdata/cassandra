@@ -51,13 +51,13 @@ public class TriggersSchemaTest
     public void newKsContainsCfWithTrigger() throws Exception
     {
         TriggerMetadata td = TriggerMetadata.create(triggerName, triggerClass);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(1));
         TableMetadata tm =
-            CreateTableStatement.parse(String.format("CREATE TABLE %s (k int PRIMARY KEY, v int)", cfName), ksName)
+            CreateTableStatement.parse(String.format("CREATE TABLE %s (k int PRIMARY KEY, v int)", cfName), ksm)
                                 .triggers(Triggers.of(td))
                                 .build();
 
-        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(1), Tables.of(tm));
-        MigrationManager.announceNewKeyspace(ksm);
+        MigrationManager.announceNewKeyspace(ksm.withSwapped(Tables.of(tm)));
 
         TableMetadata tm2 = Schema.instance.getTableMetadata(ksName, cfName);
         assertFalse(tm2.triggers.isEmpty());
@@ -72,7 +72,7 @@ public class TriggersSchemaTest
         MigrationManager.announceNewKeyspace(ksm);
 
         TableMetadata metadata =
-            CreateTableStatement.parse(String.format("CREATE TABLE %s (k int PRIMARY KEY, v int)", cfName), ksName)
+            CreateTableStatement.parse(String.format("CREATE TABLE %s (k int PRIMARY KEY, v int)", cfName), ksm)
                                 .triggers(Triggers.of(TriggerMetadata.create(triggerName, triggerClass)))
                                 .build();
 
@@ -87,11 +87,11 @@ public class TriggersSchemaTest
     @Test
     public void addTriggerToCf() throws Exception
     {
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(1));
         TableMetadata tm1 =
-            CreateTableStatement.parse(String.format("CREATE TABLE %s (k int PRIMARY KEY, v int)", cfName), ksName)
+            CreateTableStatement.parse(String.format("CREATE TABLE %s (k int PRIMARY KEY, v int)", cfName), ksm)
                                 .build();
-        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(1), Tables.of(tm1));
-        MigrationManager.announceNewKeyspace(ksm);
+        MigrationManager.announceNewKeyspace(ksm.withSwapped(Tables.of(tm1)));
 
         TriggerMetadata td = TriggerMetadata.create(triggerName, triggerClass);
         TableMetadata tm2 =
@@ -112,12 +112,12 @@ public class TriggersSchemaTest
     public void removeTriggerFromCf() throws Exception
     {
         TriggerMetadata td = TriggerMetadata.create(triggerName, triggerClass);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(1));
         TableMetadata tm =
-            CreateTableStatement.parse(String.format("CREATE TABLE %s (k int PRIMARY KEY, v int)", cfName), ksName)
+            CreateTableStatement.parse(String.format("CREATE TABLE %s (k int PRIMARY KEY, v int)", cfName), ksm)
                                 .triggers(Triggers.of(td))
                                 .build();
-        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(1), Tables.of(tm));
-        MigrationManager.announceNewKeyspace(ksm);
+        MigrationManager.announceNewKeyspace(ksm.withSwapped(Tables.of(tm)));
 
         TableMetadata tm1 = Schema.instance.getTableMetadata(ksName, cfName);
         TableMetadata tm2 =

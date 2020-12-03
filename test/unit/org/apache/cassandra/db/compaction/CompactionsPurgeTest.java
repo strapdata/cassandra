@@ -37,6 +37,7 @@ import org.apache.cassandra.db.partitions.PartitionUpdate;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.schema.CachingParams;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.FBUtilities;
@@ -73,13 +74,12 @@ public class CompactionsPurgeTest
                                     KeyspaceParams.simple(1),
                                     SchemaLoader.standardCFMD(KEYSPACE_CACHED, CF_CACHED).caching(CachingParams.CACHE_EVERYTHING));
 
-        SchemaLoader.createKeyspace(KEYSPACE_CQL,
-                                    KeyspaceParams.simple(1),
-                                    CreateTableStatement.parse("CREATE TABLE " + CF_CQL + " ("
-                                                               + "k int PRIMARY KEY,"
-                                                               + "v1 text,"
-                                                               + "v2 int"
-                                                               + ")", KEYSPACE_CQL));
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(KEYSPACE_CQL, KeyspaceParams.simple(1));
+        SchemaLoader.createKeyspace(ksm, CreateTableStatement.parse("CREATE TABLE " + CF_CQL + " ("
+                                                                    + "k int PRIMARY KEY,"
+                                                                    + "v1 text,"
+                                                                    + "v2 int"
+                                                                    + ")", ksm));
     }
 
     @Test

@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.utils.WrappedRunnable;
 
 
@@ -45,7 +46,7 @@ class TracingImpl extends Tracing
         ByteBuffer sessionId = state.sessionIdBytes;
         int ttl = state.ttl;
 
-        state.executeMutation(TraceKeyspace.makeStopSessionMutation(sessionId, elapsed, ttl));
+        state.executeMutation(TraceKeyspace.instance.makeStopSessionMutation(sessionId, elapsed, ttl));
     }
 
     public TraceState begin(final String request, final InetAddress client, final Map<String, String> parameters)
@@ -60,7 +61,7 @@ class TracingImpl extends Tracing
         final String command = state.traceType.toString();
         final int ttl = state.ttl;
 
-        state.executeMutation(TraceKeyspace.makeStartSessionMutation(sessionId, client, parameters, request, startedAt, command, ttl));
+        state.executeMutation(TraceKeyspace.instance.makeStartSessionMutation(sessionId, client, parameters, request, startedAt, command, ttl));
         return state;
     }
 
@@ -109,7 +110,7 @@ class TracingImpl extends Tracing
         {
             public void runMayThrow()
             {
-                TraceStateImpl.mutateWithCatch(TraceKeyspace.makeEventMutation(sessionId, message, -1, threadName, ttl));
+                TraceStateImpl.mutateWithCatch(TraceKeyspace.instance.makeEventMutation(sessionId, message, -1, threadName, ttl));
             }
         });
     }

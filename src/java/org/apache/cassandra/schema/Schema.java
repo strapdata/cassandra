@@ -68,15 +68,25 @@ public final class Schema implements SchemaProvider
 
     private final List<SchemaChangeListener> changeListeners = new CopyOnWriteArrayList<>();
 
+    public final SystemKeyspace systemKeyspace;
+
+    public final SchemaKeyspace schemaKeyspace;
+
     /**
      * Initialize empty schema object and load the hardcoded system tables
      */
-    private Schema()
+    public Schema()
     {
+        KeyspaceMetadata schemaKeyspaceMetadata = KeyspaceMetadata.create(SchemaConstants.SCHEMA_KEYSPACE_NAME, KeyspaceParams.local());
+        this.schemaKeyspace = new SchemaKeyspace(schemaKeyspaceMetadata);
+
+        KeyspaceMetadata systemKeyspaceMetadata = KeyspaceMetadata.create(SchemaConstants.SYSTEM_KEYSPACE_NAME, KeyspaceParams.local());
+        this.systemKeyspace = new SystemKeyspace(systemKeyspaceMetadata);
+
         if (DatabaseDescriptor.isDaemonInitialized() || DatabaseDescriptor.isToolInitialized())
         {
-            load(SchemaKeyspace.metadata());
-            load(SystemKeyspace.metadata());
+            load(schemaKeyspaceMetadata.withSwapped(this.schemaKeyspace.tables()));
+            load(systemKeyspaceMetadata.withSwapped(this.systemKeyspace.tables()).withSwapped(this.systemKeyspace.functions()));
         }
     }
 
@@ -291,6 +301,20 @@ public final class Schema implements SchemaProvider
         return null != keyspace ? keyspace : VirtualKeyspaceRegistry.instance.getKeyspaceMetadataNullable(keyspaceName);
     }
 
+    public KeyspaceMetadata getKeyspaceMetadataSafe(String keyspaceName)
+    {
+        KeyspaceMetadata ksm = getKeyspaceMetadata(keyspaceName);
+        if (ksm == null)
+            throw new ConfigurationException(String.format("Keyspace %s doesn't exist", keyspaceName));
+        return ksm;
+    }
+
+    public KeyspaceMetadata getOrCreateKeyspaceMetadata(String keyspaceName)
+    {
+        KeyspaceMetadata ksm = getKeyspaceMetadata(keyspaceName);
+        return (ksm != null) ? ksm : KeyspaceMetadata.create(keyspaceName, KeyspaceParams.local());
+    }
+
     private Set<String> getNonSystemKeyspacesSet()
     {
         return Sets.difference(keyspaces.names(), SchemaConstants.LOCAL_SYSTEM_KEYSPACE_NAMES);
@@ -439,7 +463,7 @@ public final class Schema implements SchemaProvider
 
         TableMetadata metadata = keyspace.getTableOrViewNullable(tableName);
         if (metadata == null)
-            throw new InvalidRequestException(format("table %s does not exist", tableName));
+            throw new InvalidRequestException(format("table %s does not exist in keyspace %s", tableName, keyspaceName));
 
         return metadata;
     }
@@ -521,7 +545,7 @@ public final class Schema implements SchemaProvider
     public void updateVersion()
     {
         version = SchemaKeyspace.calculateSchemaDigest();
-        SystemKeyspace.updateSchemaVersion(version);
+        systemKeyspace.updateSchemaVersion(version);
         SchemaDiagnostics.versionUpdated(this);
     }
 

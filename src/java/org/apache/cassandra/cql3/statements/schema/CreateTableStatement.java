@@ -96,7 +96,7 @@ public final class CreateTableStatement extends AlterSchemaStatement
             throw new AlreadyExistsException(keyspaceName, tableName);
         }
 
-        TableMetadata table = builder(keyspace.types).build();
+        TableMetadata table = builder(keyspace, keyspace.types).build();
         table.validate();
 
         if (keyspace.createReplicationStrategy().hasTransientReplicas()
@@ -135,14 +135,14 @@ public final class CreateTableStatement extends AlterSchemaStatement
         return String.format("%s (%s, %s)", getClass().getSimpleName(), keyspaceName, tableName);
     }
 
-    public TableMetadata.Builder builder(Types types)
+    public TableMetadata.Builder builder(KeyspaceMetadata keyspace, Types types)
     {
         attrs.validate();
         TableParams params = attrs.asNewTableParams();
 
         // use a TreeMap to preserve ordering across JDK versions (see CASSANDRA-9492) - important for stable unit tests
         Map<ColumnIdentifier, CQL3Type> columns = new TreeMap<>(comparing(o -> o.bytes));
-        rawColumns.forEach((column, type) -> columns.put(column, type.prepare(keyspaceName, types)));
+        rawColumns.forEach((column, type) -> columns.put(column, type.prepare(keyspace, types)));
 
         // check for nested non-frozen UDTs or collections in a non-frozen UDT
         columns.forEach((column, type) ->
@@ -271,12 +271,12 @@ public final class CreateTableStatement extends AlterSchemaStatement
         return builder;
     }
 
-    public static TableMetadata.Builder parse(String cql, String keyspace)
+    public static TableMetadata.Builder parse(String cql, KeyspaceMetadata ksm)
     {
         return CQLFragmentParser.parseAny(CqlParser::createTableStatement, cql, "CREATE TABLE")
-                                .keyspace(keyspace)
+                                .keyspace(ksm.name)
                                 .prepare(null) // works around a messy ClientState/QueryProcessor class init deadlock
-                                .builder(Types.none());
+                                .builder(ksm, Types.none());
     }
 
     public final static class Raw extends CQLStatement.Raw
@@ -291,12 +291,18 @@ public final class CreateTableStatement extends AlterSchemaStatement
         private List<ColumnIdentifier> partitionKeyColumns;
 
         private final LinkedHashMap<ColumnIdentifier, Boolean> clusteringOrder = new LinkedHashMap<>();
-        public final TableAttributes attrs = new TableAttributes();
+        public final TableAttributes attrs;
 
         public Raw(QualifiedName name, boolean ifNotExists)
         {
+            this(name, ifNotExists, new TableAttributes());
+        }
+
+        public Raw(QualifiedName name, boolean ifNotExists, TableAttributes attrs)
+        {
             this.name = name;
             this.ifNotExists = ifNotExists;
+            this.attrs = attrs;
         }
 
         public CreateTableStatement prepare(ClientState state)

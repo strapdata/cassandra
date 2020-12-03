@@ -113,10 +113,9 @@ public class ReadRepairTest
     {
         SchemaLoader.loadSchema();
         String ksName = "ks";
-
-        cfm = CreateTableStatement.parse("CREATE TABLE tbl (k int primary key, v text)", ksName).build();
-        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(3), Tables.of(cfm));
-        MigrationManager.announceNewKeyspace(ksm, false);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksName, KeyspaceParams.simple(3));
+        cfm = CreateTableStatement.parse("CREATE TABLE tbl (k int primary key, v text)", ksm).build();
+        MigrationManager.announceNewKeyspace(ksm.withSwapped(Tables.of(cfm)), false);
 
         ks = Keyspace.open(ksName);
         cfs = ks.getColumnFamilyStore("tbl");

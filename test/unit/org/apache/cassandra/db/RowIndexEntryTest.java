@@ -58,6 +58,8 @@ import org.apache.cassandra.io.sstable.format.SSTableFlushObserver;
 import org.apache.cassandra.io.sstable.format.Version;
 import org.apache.cassandra.io.sstable.format.big.BigFormat;
 import org.apache.cassandra.io.util.*;
+import org.apache.cassandra.schema.KeyspaceMetadata;
+import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.serializers.LongSerializer;
 import org.apache.cassandra.utils.ByteBufferUtil;
@@ -133,8 +135,9 @@ public class RowIndexEntryTest extends CQLTester
 
     private static class DoubleSerializer implements AutoCloseable
     {
+        KeyspaceMetadata ksm = KeyspaceMetadata.create("foo", KeyspaceParams.simple(1));
         TableMetadata metadata =
-            CreateTableStatement.parse("CREATE TABLE pipe.dev_null (pk bigint, ck bigint, val text, PRIMARY KEY(pk, ck))", "foo")
+            CreateTableStatement.parse("CREATE TABLE pipe.dev_null (pk bigint, ck bigint, val text, PRIMARY KEY(pk, ck))", ksm)
                                 .build();
 
         Version version = BigFormat.latestVersion;
@@ -796,11 +799,11 @@ public class RowIndexEntryTest extends CQLTester
                 return indexes.size();
             }
         };
-        
+
         AbstractSSTableIterator.IndexState indexState = new AbstractSSTableIterator.IndexState(
-            null, comp, rie, false, null                                                                                              
+            null, comp, rie, false, null
         );
-        
+
         assertEquals(0, indexState.indexFor(cn(-1L), -1));
         assertEquals(0, indexState.indexFor(cn(5L), -1));
         assertEquals(1, indexState.indexFor(cn(12L), -1));

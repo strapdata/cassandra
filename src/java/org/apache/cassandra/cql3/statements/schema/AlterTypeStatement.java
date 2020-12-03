@@ -105,12 +105,13 @@ public abstract class AlterTypeStatement extends AlterSchemaStatement
             this.type = type;
         }
 
-        UserType apply(KeyspaceMetadata keyspace, UserType userType)
+        @Override
+        public UserType apply(KeyspaceMetadata keyspace, UserType userType)
         {
             if (userType.fieldPosition(fieldName) >= 0)
                 throw ire("Cannot add field %s to type %s: a field with name %s already exists", fieldName, userType.getCqlTypeName(), fieldName);
 
-            AbstractType<?> fieldType = type.prepare(keyspaceName, keyspace.types).getType();
+            AbstractType<?> fieldType = type.prepare(keyspace, keyspace.types).getType();
             if (fieldType.referencesUserType(userType.name))
                 throw ire("Cannot add new field %s of type %s to user type %s as it would create a circular reference", fieldName, type, userType.getCqlTypeName());
 
@@ -148,7 +149,8 @@ public abstract class AlterTypeStatement extends AlterSchemaStatement
             this.renamedFields = renamedFields;
         }
 
-        UserType apply(KeyspaceMetadata keyspace, UserType userType)
+        @Override
+        public UserType apply(KeyspaceMetadata keyspace, UserType userType)
         {
             List<String> dependentAggregates =
                 keyspace.functions
@@ -191,7 +193,8 @@ public abstract class AlterTypeStatement extends AlterSchemaStatement
             super(keyspaceName, typeName);
         }
 
-        UserType apply(KeyspaceMetadata keyspace, UserType userType)
+        @Override
+        public UserType apply(KeyspaceMetadata keyspace, UserType userType)
         {
             throw ire("Alterting field types is no longer supported");
         }

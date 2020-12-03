@@ -35,6 +35,7 @@ import org.apache.cassandra.db.ConsistencyLevel;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.exceptions.OverloadedException;
 import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.WrappedRunnable;
@@ -63,7 +64,7 @@ public class TraceStateImpl extends TraceState
         final String threadName = Thread.currentThread().getName();
         final int elapsed = elapsed();
 
-        executeMutation(TraceKeyspace.makeEventMutation(sessionIdBytes, message, elapsed, threadName, ttl));
+        executeMutation(TraceKeyspace.instance.makeEventMutation(sessionIdBytes, message, elapsed, threadName, ttl));
         if (logger.isTraceEnabled())
             logger.trace("Adding <{}> to trace events", message);
     }

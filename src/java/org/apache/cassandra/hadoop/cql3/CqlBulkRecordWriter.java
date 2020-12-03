@@ -42,6 +42,7 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.SSTableLoader;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.streaming.StreamState;
 import org.apache.cassandra.utils.NativeSSTableLoaderClient;
@@ -56,7 +57,7 @@ import static org.apache.cassandra.config.CassandraRelevantProperties.JAVA_IO_TM
 /**
  * The <code>CqlBulkRecordWriter</code> maps the output &lt;key, value&gt;
  * pairs to a Cassandra column family. In particular, it applies the binded variables
- * in the value to the prepared statement, which it associates with the key, and in 
+ * in the value to the prepared statement, which it associates with the key, and in
  * turn the responsible endpoint.
  *
  * <p>
@@ -117,18 +118,18 @@ public class CqlBulkRecordWriter extends RecordWriter<Object, List<ByteBuffer>>
         bufferSize = Integer.parseInt(conf.get(BUFFER_SIZE_IN_MB, "64"));
         setConfigs();
     }
-    
+
     private void setConfigs() throws IOException
     {
         // if anything is missing, exceptions will be thrown here, instead of on write()
         keyspace = ConfigHelper.getOutputKeyspace(conf);
         table = ConfigHelper.getOutputColumnFamily(conf);
-        
+
         // check if table is aliased
         String aliasedCf = CqlBulkOutputFormat.getTableForAlias(conf, table);
         if (aliasedCf != null)
             table = aliasedCf;
-        
+
         schema = CqlBulkOutputFormat.getTableSchema(conf, table);
         insertStatement = CqlBulkOutputFormat.getTableInsertStatement(conf, table);
         outputDir = getTableDirectory();
@@ -177,7 +178,7 @@ public class CqlBulkRecordWriter extends RecordWriter<Object, List<ByteBuffer>>
         if (loader == null)
         {
             ExternalClient externalClient = new ExternalClient(conf);
-            externalClient.setTableMetadata(TableMetadataRef.forOfflineTools(CreateTableStatement.parse(schema, keyspace).build()));
+            externalClient.setTableMetadata(TableMetadataRef.forOfflineTools(CreateTableStatement.parse(schema, Schema.instance.getKeyspaceMetadata(keyspace)).build()));
 
             loader = new SSTableLoader(outputDir, externalClient, new NullOutputHandler())
             {
@@ -190,12 +191,12 @@ public class CqlBulkRecordWriter extends RecordWriter<Object, List<ByteBuffer>>
             };
         }
     }
-    
+
     /**
      * <p>
      * The column values must correspond to the order in which
-     * they appear in the insert stored procedure. 
-     * 
+     * they appear in the insert stored procedure.
+     *
      * Key is not used, so it can be null or any object.
      * </p>
      *
@@ -212,27 +213,27 @@ public class CqlBulkRecordWriter extends RecordWriter<Object, List<ByteBuffer>>
         try
         {
             ((CQLSSTableWriter) writer).rawAddRow(values);
-            
+
             if (null != progress)
                 progress.progress();
             if (null != context)
                 HadoopCompat.progress(context);
-        } 
+        }
         catch (InvalidRequestException e)
         {
             throw new IOException("Error adding row with key: " + key, e);
         }
     }
-    
+
     private File getTableDirectory() throws IOException
     {
         File dir = new File(String.format("%s%s%s%s%s-%s", getOutputLocation(), File.separator, keyspace, File.separator, table, UUID.randomUUID().toString()));
-        
+
         if (!dir.exists() && !dir.mkdirs())
         {
             throw new IOException("Failed to created output directory: " + dir);
         }
-        
+
         return dir;
     }
 
@@ -283,7 +284,7 @@ public class CqlBulkRecordWriter extends RecordWriter<Object, List<ByteBuffer>>
             }
         }
     }
-    
+
     public static class ExternalClient extends NativeSSTableLoaderClient
     {
         public ExternalClient(Configuration conf)

@@ -116,9 +116,10 @@ public class SchemaKeyspaceTest
 
     private static void createTable(String keyspace, String cql)
     {
-        TableMetadata table = CreateTableStatement.parse(cql, keyspace).build();
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(keyspace, KeyspaceParams.simple(1));
+        TableMetadata table = CreateTableStatement.parse(cql, ksm).build();
 
-        KeyspaceMetadata ksm = KeyspaceMetadata.create(keyspace, KeyspaceParams.simple(1), Tables.of(table));
+        ksm = ksm.withSwapped(Tables.of(table));
         Mutation mutation = SchemaKeyspace.makeCreateTableMutation(ksm, table, FBUtilities.timestampMicros()).build();
         Schema.instance.merge(Collections.singleton(mutation));
     }

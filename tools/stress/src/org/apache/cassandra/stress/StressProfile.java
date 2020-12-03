@@ -45,6 +45,7 @@ import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
 import org.apache.cassandra.exceptions.RequestValidationException;
 import org.apache.cassandra.exceptions.SyntaxException;
 import org.apache.cassandra.schema.ColumnMetadata;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.stress.generate.*;
 import org.apache.cassandra.stress.generate.values.*;
 import org.apache.cassandra.stress.operations.userdefined.CASQuery;
@@ -431,7 +432,7 @@ public class StressProfile implements Serializable
 
     public PartitionGenerator getOfflineGenerator()
     {
-        org.apache.cassandra.schema.TableMetadata metadata = CreateTableStatement.parse(tableCql, keyspaceName).build();
+        org.apache.cassandra.schema.TableMetadata metadata = CreateTableStatement.parse(tableCql, Schema.instance.getKeyspaceMetadata(keyspaceName)).build();
 
         //Add missing column configs
         Iterator<ColumnMetadata> it = metadata.allColumnsInSelectOrder();
@@ -471,7 +472,7 @@ public class StressProfile implements Serializable
     {
         assert tableCql != null;
 
-        org.apache.cassandra.schema.TableMetadata metadata = CreateTableStatement.parse(tableCql, keyspaceName).build();
+        org.apache.cassandra.schema.TableMetadata metadata = CreateTableStatement.parse(tableCql, Schema.instance.getKeyspaceMetadata(keyspaceName)).build();
 
         List<ColumnMetadata> allColumns = com.google.common.collect.Lists.newArrayList(metadata.allColumnsInSelectOrder());
 

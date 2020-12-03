@@ -43,6 +43,7 @@ import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.big.BigFormat;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.schema.CompressionParams;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.serializers.SerializationUtils;
@@ -162,7 +163,7 @@ public class CassandraStreamHeaderTest
     public void serializerTest()
     {
         String ddl = "CREATE TABLE tbl (k INT PRIMARY KEY, v INT)";
-        TableMetadata metadata = CreateTableStatement.parse(ddl, "ks").build();
+        TableMetadata metadata = CreateTableStatement.parse(ddl, KeyspaceMetadata.create("ks", KeyspaceParams.simple(1))).build();
         CassandraStreamHeader header =
             CassandraStreamHeader.builder()
                                  .withSSTableFormat(SSTableFormat.Type.BIG)
@@ -181,7 +182,7 @@ public class CassandraStreamHeaderTest
     public void serializerTest_EntireSSTableTransfer()
     {
         String ddl = "CREATE TABLE tbl (k INT PRIMARY KEY, v INT)";
-        TableMetadata metadata = CreateTableStatement.parse(ddl, "ks").build();
+        TableMetadata metadata = CreateTableStatement.parse(ddl, KeyspaceMetadata.create("ks", KeyspaceParams.simple(1))).build();
 
         ComponentManifest manifest = new ComponentManifest(new LinkedHashMap<Component, Long>() {{ put(Component.DATA, 100L); }});
 

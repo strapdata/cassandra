@@ -42,6 +42,7 @@ import org.apache.cassandra.repair.AbstractRepairTest;
 import org.apache.cassandra.repair.consistent.LocalSessionAccessor;
 import org.apache.cassandra.schema.IndexMetadata;
 import org.apache.cassandra.schema.Indexes;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
@@ -82,7 +83,8 @@ public abstract class AbstractPendingAntiCompactionTest
     public void setup()
     {
         ks = "ks_" + System.currentTimeMillis();
-        cfm = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, tbl), ks).build();
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ks, KeyspaceParams.simple(1));
+        cfm = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, tbl), ksm).build();
 
         Indexes.Builder indexes = Indexes.builder();
         indexes.add(IndexMetadata.fromIndexTargets(Collections.singletonList(new IndexTarget(new ColumnIdentifier("v", true),
@@ -90,9 +92,9 @@ public abstract class AbstractPendingAntiCompactionTest
                                                    tbl2 + "_idx",
                                                    IndexMetadata.Kind.COMPOSITES, Collections.emptyMap()));
 
-        TableMetadata cfm2 = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, tbl2), ks).indexes(indexes.build()).build();
+        TableMetadata cfm2 = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, tbl2), ksm).indexes(indexes.build()).build();
 
-        SchemaLoader.createKeyspace(ks, KeyspaceParams.simple(1), cfm, cfm2);
+        SchemaLoader.createKeyspace(ksm, cfm, cfm2);
         cfs = Schema.instance.getColumnFamilyStoreInstance(cfm.id);
         cfs2 = Schema.instance.getColumnFamilyStoreInstance(cfm2.id);
     }

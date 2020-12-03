@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
 import org.apache.cassandra.repair.AbstractRepairTest;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -103,8 +104,9 @@ public class CoordinatorSessionsTest extends AbstractRepairTest
     public static void setupClass()
     {
         SchemaLoader.prepareServer();
-        cfm = CreateTableStatement.parse("CREATE TABLE tbl (k INT PRIMARY KEY, v INT)", "coordinatorsessiontest").build();
-        SchemaLoader.createKeyspace("coordinatorsessiontest", KeyspaceParams.simple(1), cfm);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create("coordinatorsessiontest", KeyspaceParams.simple(1));
+        cfm = CreateTableStatement.parse("CREATE TABLE tbl (k INT PRIMARY KEY, v INT)", ksm).build();
+        SchemaLoader.createKeyspace(ksm, cfm);
         cfs = Schema.instance.getColumnFamilyStoreInstance(cfm.id);
     }
 

@@ -39,9 +39,7 @@ import static java.lang.String.format;
 
 public final class TraceKeyspace
 {
-    private TraceKeyspace()
-    {
-    }
+    static final TraceKeyspace instance = new TraceKeyspace();
 
     /**
      * Generation is used as a timestamp for automatic table creation on startup.
@@ -63,49 +61,22 @@ public final class TraceKeyspace
     public static final String SESSIONS = "sessions";
     public static final String EVENTS = "events";
 
-    private static final TableMetadata Sessions =
-        parse(SESSIONS,
-                "tracing sessions",
-                "CREATE TABLE %s ("
-                + "session_id uuid,"
-                + "command text,"
-                + "client inet,"
-                + "coordinator inet,"
-                + "coordinator_port int,"
-                + "duration int,"
-                + "parameters map<text, text>,"
-                + "request text,"
-                + "started_at timestamp,"
-                + "PRIMARY KEY ((session_id)))");
+    private final KeyspaceMetadata keyspaceMetadata;
 
-    private static final TableMetadata Events =
-        parse(EVENTS,
-                "tracing events",
-                "CREATE TABLE %s ("
-                + "session_id uuid,"
-                + "event_id timeuuid,"
-                + "activity text,"
-                + "source inet,"
-                + "source_port int,"
-                + "source_elapsed int,"
-                + "thread text,"
-                + "PRIMARY KEY ((session_id), event_id))");
+    private final TableMetadata Sessions;
 
-    private static TableMetadata parse(String table, String description, String cql)
+    private final TableMetadata Events;
+
+    private TableMetadata parse(KeyspaceMetadata ksm, String table, String description, String cql)
     {
-        return CreateTableStatement.parse(format(cql, table), SchemaConstants.TRACE_KEYSPACE_NAME)
+        return CreateTableStatement.parse(format(cql, table), ksm)
                                    .id(TableId.forSystemTable(SchemaConstants.TRACE_KEYSPACE_NAME, table))
                                    .gcGraceSeconds(0)
                                    .comment(description)
                                    .build();
     }
 
-    public static KeyspaceMetadata metadata()
-    {
-        return KeyspaceMetadata.create(SchemaConstants.TRACE_KEYSPACE_NAME, KeyspaceParams.simple(2), Tables.of(Sessions, Events));
-    }
-
-    static Mutation makeStartSessionMutation(ByteBuffer sessionId,
+    Mutation makeStartSessionMutation(ByteBuffer sessionId,
                                              InetAddress client,
                                              Map<String, String> parameters,
                                              String request,
@@ -128,7 +99,7 @@ public final class TraceKeyspace
         return builder.buildAsMutation();
     }
 
-    static Mutation makeStopSessionMutation(ByteBuffer sessionId, int elapsed, int ttl)
+    Mutation makeStopSessionMutation(ByteBuffer sessionId, int elapsed, int ttl)
     {
         PartitionUpdate.SimpleBuilder builder = PartitionUpdate.simpleBuilder(Sessions, sessionId);
         builder.row()
@@ -137,7 +108,7 @@ public final class TraceKeyspace
         return builder.buildAsMutation();
     }
 
-    static Mutation makeEventMutation(ByteBuffer sessionId, String message, int elapsed, String threadName, int ttl)
+    Mutation makeEventMutation(ByteBuffer sessionId, String message, int elapsed, String threadName, int ttl)
     {
         PartitionUpdate.SimpleBuilder builder = PartitionUpdate.simpleBuilder(Events, sessionId);
         Row.SimpleBuilder rowBuilder = builder.row(UUIDGen.getTimeUUID())
@@ -153,5 +124,51 @@ public final class TraceKeyspace
             rowBuilder.add("source_elapsed", elapsed);
 
         return builder.buildAsMutation();
+    }
+
+    public TraceKeyspace()
+    {
+        this(KeyspaceMetadata.create(SchemaConstants.TRACE_KEYSPACE_NAME, KeyspaceParams.simple(2)));
+    }
+
+    public TraceKeyspace(KeyspaceMetadata ksm)
+    {
+        this.Sessions = parse(ksm, SESSIONS,
+              "tracing sessions",
+              "CREATE TABLE %s ("
+              + "session_id uuid,"
+              + "command text,"
+              + "client inet,"
+              + "coordinator inet,"
+              + "coordinator_port int,"
+              + "duration int,"
+              + "parameters map<text, text>,"
+              + "request text,"
+              + "started_at timestamp,"
+              + "PRIMARY KEY ((session_id)))");
+
+        this.Events = parse(ksm, EVENTS,
+              "tracing events",
+              "CREATE TABLE %s ("
+              + "session_id uuid,"
+              + "event_id timeuuid,"
+              + "activity text,"
+              + "source inet,"
+              + "source_port int,"
+              + "source_elapsed int,"
+              + "thread text,"
+              + "PRIMARY KEY ((session_id), event_id))");
+
+        this.keyspaceMetadata = ksm.withSwapped(tables());
+    }
+
+    public Tables tables()
+    {
+        return Tables.of(Events, Sessions);
+    }
+
+    public static KeyspaceMetadata metadata()
+    {
+        return instance.keyspaceMetadata;
     }
 }

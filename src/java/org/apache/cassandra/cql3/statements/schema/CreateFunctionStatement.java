@@ -108,9 +108,9 @@ public final class CreateFunctionStatement extends AlterSchemaStatement
 
         List<AbstractType<?>> argumentTypes =
             rawArgumentTypes.stream()
-                            .map(t -> t.prepare(keyspaceName, keyspace.types).getType())
+                            .map(t -> t.prepare(keyspace, keyspace.types).getType())
                             .collect(toList());
-        AbstractType<?> returnType = rawReturnType.prepare(keyspaceName, keyspace.types).getType();
+        AbstractType<?> returnType = rawReturnType.prepare(keyspace, keyspace.types).getType();
 
         UDFunction function =
             UDFunction.create(new FunctionName(keyspaceName, functionName),

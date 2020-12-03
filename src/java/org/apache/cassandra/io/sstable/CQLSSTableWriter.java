@@ -287,7 +287,7 @@ public class CQLSSTableWriter implements Closeable
     {
         int size = Math.min(values.size(), boundNames.size());
         List<ByteBuffer> rawValues = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) 
+        for (int i = 0; i < size; i++)
         {
             ColumnSpecification spec = boundNames.get(i);
             rawValues.add(values.get(spec.name.toString()));
@@ -502,11 +502,6 @@ public class CQLSSTableWriter implements Closeable
 
             synchronized (CQLSSTableWriter.class)
             {
-                if (Schema.instance.getKeyspaceMetadata(SchemaConstants.SCHEMA_KEYSPACE_NAME) == null)
-                    Schema.instance.load(SchemaKeyspace.metadata());
-                if (Schema.instance.getKeyspaceMetadata(SchemaConstants.SYSTEM_KEYSPACE_NAME) == null)
-                    Schema.instance.load(SystemKeyspace.metadata());
-
                 String keyspaceName = schemaStatement.keyspace();
 
                 if (Schema.instance.getKeyspaceMetadata(keyspaceName) == null)
@@ -562,7 +557,7 @@ public class CQLSSTableWriter implements Closeable
             CreateTableStatement statement = schemaStatement.prepare(state);
             statement.validate(ClientState.forInternalCalls());
 
-            TableMetadata.Builder builder = statement.builder(types);
+            TableMetadata.Builder builder = statement.builder(Schema.instance.getKeyspaceMetadata(state.getKeyspace()), types);
             if (partitioner != null)
                 builder.partitioner(partitioner);
 

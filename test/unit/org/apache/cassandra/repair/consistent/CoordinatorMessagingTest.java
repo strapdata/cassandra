@@ -53,6 +53,7 @@ import org.apache.cassandra.repair.messages.FinalizePromise;
 import org.apache.cassandra.repair.messages.FinalizePropose;
 import org.apache.cassandra.repair.messages.PrepareConsistentRequest;
 import org.apache.cassandra.repair.messages.PrepareConsistentResponse;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
@@ -79,8 +80,9 @@ public class CoordinatorMessagingTest extends AbstractRepairTest
     public void setup()
     {
         String ks = "ks_" + System.currentTimeMillis();
-        TableMetadata cfm = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, "tbl"), ks).build();
-        SchemaLoader.createKeyspace(ks, KeyspaceParams.simple(1), cfm);
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ks, KeyspaceParams.simple(1));
+        TableMetadata cfm = CreateTableStatement.parse(String.format("CREATE TABLE %s.%s (k INT PRIMARY KEY, v INT)", ks, "tbl"), ksm).build();
+        SchemaLoader.createKeyspace(ksm, cfm);
         cfs = Schema.instance.getColumnFamilyStoreInstance(cfm.id);
         cfs.disableAutoCompaction();
     }

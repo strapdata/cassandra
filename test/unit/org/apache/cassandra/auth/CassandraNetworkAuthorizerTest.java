@@ -44,6 +44,9 @@ import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.exceptions.RequestExecutionException;
+import org.apache.cassandra.schema.KeyspaceParams;
+import org.apache.cassandra.schema.SchemaConstants;
+import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.service.QueryState;
 import org.apache.cassandra.transport.messages.ResultMessage;
@@ -101,6 +104,9 @@ public class CassandraNetworkAuthorizerTest
     public static void defineSchema() throws ConfigurationException
     {
         SchemaLoader.prepareServer();
+        SchemaLoader.createKeyspace(SchemaConstants.AUTH_KEYSPACE_NAME,
+                                    KeyspaceParams.simple(1),
+                                    Iterables.toArray(AuthKeyspace.metadata().tables, TableMetadata.class));
         SchemaLoader.setupAuth(new LocalCassandraRoleManager(),
                                new PasswordAuthenticator(),
                                new LocalCassandraAuthorizer(),

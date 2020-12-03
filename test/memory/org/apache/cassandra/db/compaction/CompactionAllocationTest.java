@@ -60,6 +60,7 @@ import org.apache.cassandra.io.util.DataOutputBuffer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.UnbufferedDataOutputStreamPlus;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
@@ -460,9 +461,9 @@ public class CompactionAllocationTest
     private static void testTinyPartitions(String name, int numSSTable, int sstablePartitions, boolean overlap) throws Throwable
     {
         String ksname = "ks_" + name.toLowerCase();
-
-        SchemaLoader.createKeyspace(ksname, KeyspaceParams.simple(1),
-                                    CreateTableStatement.parse("CREATE TABLE tbl (k INT PRIMARY KEY, v INT)", ksname).build());
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksname, KeyspaceParams.simple(1));
+        SchemaLoader.createKeyspace(ksm,
+                                    CreateTableStatement.parse("CREATE TABLE tbl (k INT PRIMARY KEY, v INT)", ksm).build());
 
         ColumnFamilyStore cfs = Schema.instance.getColumnFamilyStoreInstance(Schema.instance.getTableMetadata(ksname, "tbl").id);
         Assert.assertNotNull(cfs);
@@ -569,9 +570,9 @@ public class CompactionAllocationTest
     private static void testMediumPartitions(String name, int numSSTable, int sstablePartitions, boolean overlap, boolean overlapCK) throws Throwable
     {
         String ksname = "ks_" + name.toLowerCase();
-
-        SchemaLoader.createKeyspace(ksname, KeyspaceParams.simple(1),
-                                    CreateTableStatement.parse("CREATE TABLE tbl (k text, c text, v1 text, v2 text, v3 text, v4 text, PRIMARY KEY (k, c))", ksname).build());
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksname, KeyspaceParams.simple(1));
+        SchemaLoader.createKeyspace(ksm,
+                                    CreateTableStatement.parse("CREATE TABLE tbl (k text, c text, v1 text, v2 text, v3 text, v4 text, PRIMARY KEY (k, c))", ksm).build());
 
         ColumnFamilyStore cfs = Schema.instance.getColumnFamilyStoreInstance(Schema.instance.getTableMetadata(ksname, "tbl").id);
         Assert.assertNotNull(cfs);
@@ -669,8 +670,9 @@ public class CompactionAllocationTest
     {
         String ksname = "ks_" + name.toLowerCase();
 
-        SchemaLoader.createKeyspace(ksname, KeyspaceParams.simple(1),
-                                    CreateTableStatement.parse("CREATE TABLE tbl (k text, c text, v1 text, v2 text, v3 text, v4 text, PRIMARY KEY (k, c))", ksname).build());
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(ksname, KeyspaceParams.simple(1));
+        SchemaLoader.createKeyspace(ksm,
+                                    CreateTableStatement.parse("CREATE TABLE tbl (k text, c text, v1 text, v2 text, v3 text, v4 text, PRIMARY KEY (k, c))", ksm).build());
 
         ColumnFamilyStore cfs = Schema.instance.getColumnFamilyStoreInstance(Schema.instance.getTableMetadata(ksname, "tbl").id);
         Assert.assertNotNull(cfs);

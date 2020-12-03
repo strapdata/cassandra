@@ -94,7 +94,7 @@ public class MutationBench
                                        "( userid bigint," +
                                        "picid bigint," +
                                        "commentid bigint, " +
-                                       "PRIMARY KEY(userid, picid))", keyspace)
+                                       "PRIMARY KEY(userid, picid))", ksm)
                                 .build();
 
         Schema.instance.load(ksm.withSwapped(ksm.tables.with(metadata)));

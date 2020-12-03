@@ -29,6 +29,7 @@ import org.junit.runner.RunWith;
 import org.apache.cassandra.*;
 import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
 import org.apache.cassandra.schema.ColumnMetadata;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.*;
@@ -66,23 +67,23 @@ public class QueryPagerTest
         SchemaLoader.prepareServer();
 
         SchemaLoader.createKeyspace(KEYSPACE1,
-                                    KeyspaceParams.simple(1),
-                                    SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD));
+                                                     KeyspaceParams.simple(1),
+                                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD));
 
-        SchemaLoader.createKeyspace(KEYSPACE_CQL,
-                                    KeyspaceParams.simple(1),
+        KeyspaceMetadata ksm = KeyspaceMetadata.create(KEYSPACE_CQL, KeyspaceParams.simple(1));
+        SchemaLoader.createKeyspace(ksm,
                                     CreateTableStatement.parse("CREATE TABLE " + CF_CQL + " ("
                                                                + "k text,"
                                                                + "c text,"
                                                                + "v text,"
-                                                               + "PRIMARY KEY (k, c))", KEYSPACE_CQL),
+                                                               + "PRIMARY KEY (k, c))", ksm),
                                     CreateTableStatement.parse("CREATE TABLE " + CF_CQL_WITH_STATIC + " ("
                                                                + "pk text, "
                                                                + "ck int, "
                                                                + "st int static, "
                                                                + "v1 int, "
                                                                + "v2 int, "
-                                                               + "PRIMARY KEY(pk, ck))", KEYSPACE_CQL));
+                                                               + "PRIMARY KEY(pk, ck))", ksm));
         addData();
     }
 

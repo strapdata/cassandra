@@ -118,6 +118,7 @@ public abstract class AlterTableStatement extends AlterSchemaStatement
             super(keyspaceName, tableName);
         }
 
+        @Override
         public KeyspaceMetadata apply(KeyspaceMetadata keyspace, TableMetadata table)
         {
             throw ire("Altering column types is no longer supported");
@@ -152,6 +153,7 @@ public abstract class AlterTableStatement extends AlterSchemaStatement
             this.newColumns = newColumns;
         }
 
+        @Override
         public KeyspaceMetadata apply(KeyspaceMetadata keyspace, TableMetadata table)
         {
             TableMetadata.Builder tableBuilder = table.unbuild();
@@ -169,7 +171,7 @@ public abstract class AlterTableStatement extends AlterSchemaStatement
                                Views.Builder viewsBuilder)
         {
             ColumnIdentifier name = column.name;
-            AbstractType<?> type = column.type.prepare(keyspaceName, keyspace.types).getType();
+            AbstractType<?> type = column.type.prepare(keyspace, keyspace.types).getType();
             boolean isStatic = column.isStatic;
 
             if (null != tableBuilder.getColumn(name))
@@ -240,6 +242,7 @@ public abstract class AlterTableStatement extends AlterSchemaStatement
             this.timestamp = timestamp;
         }
 
+        @Override
         public KeyspaceMetadata apply(KeyspaceMetadata keyspace, TableMetadata table)
         {
             TableMetadata.Builder builder = table.unbuild();
@@ -302,6 +305,7 @@ public abstract class AlterTableStatement extends AlterSchemaStatement
             this.renamedColumns = renamedColumns;
         }
 
+        @Override
         public KeyspaceMetadata apply(KeyspaceMetadata keyspace, TableMetadata table)
         {
             TableMetadata.Builder tableBuilder = table.unbuild();
@@ -368,6 +372,7 @@ public abstract class AlterTableStatement extends AlterSchemaStatement
             this.attrs = attrs;
         }
 
+        @Override
         public KeyspaceMetadata apply(KeyspaceMetadata keyspace, TableMetadata table)
         {
             attrs.validate();
@@ -418,11 +423,18 @@ public abstract class AlterTableStatement extends AlterSchemaStatement
         private final Map<ColumnIdentifier, ColumnIdentifier> renamedColumns = new HashMap<>();
 
         // OPTIONS
-        public final TableAttributes attrs = new TableAttributes();
+        public final TableAttributes attrs;
 
         public Raw(QualifiedName name)
         {
             this.name = name;
+            this.attrs = new TableAttributes();
+        }
+
+        public Raw(QualifiedName name, TableAttributes attrs)
+        {
+            this.name = name;
+            this.attrs = attrs;
         }
 
         public AlterTableStatement prepare(ClientState state)

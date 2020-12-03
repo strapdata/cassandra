@@ -69,6 +69,7 @@ import org.apache.cassandra.locator.Replicas;
 import org.apache.cassandra.net.Message;
 import org.apache.cassandra.net.MessageFlag;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.SchemaConstants;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.service.StorageService;
@@ -126,7 +127,7 @@ public class BatchlogManager implements BatchlogManagerMBean
 
     public static void remove(UUID id)
     {
-        new Mutation(PartitionUpdate.fullPartitionDelete(SystemKeyspace.Batches,
+        new Mutation(PartitionUpdate.fullPartitionDelete(Schema.instance.systemKeyspace.Batches,
                                                          UUIDType.instance.decompose(id),
                                                          FBUtilities.timestampMicros(),
                                                          FBUtilities.nowInSeconds()))
@@ -157,7 +158,7 @@ public class BatchlogManager implements BatchlogManagerMBean
             }
         }
 
-        PartitionUpdate.SimpleBuilder builder = PartitionUpdate.simpleBuilder(SystemKeyspace.Batches, batch.id);
+        PartitionUpdate.SimpleBuilder builder = PartitionUpdate.simpleBuilder(Schema.instance.systemKeyspace.Batches, batch.id);
         builder.row()
                .timestamp(batch.creationTime)
                .add("version", MessagingService.current_version)

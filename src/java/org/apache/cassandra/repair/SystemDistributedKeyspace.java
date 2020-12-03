@@ -52,6 +52,7 @@ import org.apache.cassandra.repair.messages.RepairOption;
 import org.apache.cassandra.schema.CompactionParams;
 import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.SchemaConstants;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
@@ -64,10 +65,6 @@ import static org.apache.cassandra.utils.ByteBufferUtil.bytes;
 
 public final class SystemDistributedKeyspace
 {
-    private SystemDistributedKeyspace()
-    {
-    }
-
     private static final Logger logger = LoggerFactory.getLogger(SystemDistributedKeyspace.class);
 
     /**
@@ -90,71 +87,84 @@ public final class SystemDistributedKeyspace
 
     public static final String VIEW_BUILD_STATUS = "view_build_status";
 
-    private static final TableMetadata RepairHistory =
-        parse(REPAIR_HISTORY,
-                "Repair history",
-                "CREATE TABLE %s ("
-                     + "keyspace_name text,"
-                     + "columnfamily_name text,"
-                     + "id timeuuid,"
-                     + "parent_id timeuuid,"
-                     + "range_begin text,"
-                     + "range_end text,"
-                     + "coordinator inet,"
-                     + "coordinator_port int,"
-                     + "participants set<inet>,"
-                     + "participants_v2 set<text>,"
-                     + "exception_message text,"
-                     + "exception_stacktrace text,"
-                     + "status text,"
-                     + "started_at timestamp,"
-                     + "finished_at timestamp,"
-                     + "PRIMARY KEY ((keyspace_name, columnfamily_name), id))")
-        .defaultTimeToLive((int) TimeUnit.DAYS.toSeconds(30))
-        .compaction(CompactionParams.twcs(ImmutableMap.of("compaction_window_unit","DAYS",
-                                                          "compaction_window_size","1")))
-        .build();
+    private final TableMetadata RepairHistory;
 
-    private static final TableMetadata ParentRepairHistory =
-        parse(PARENT_REPAIR_HISTORY,
-                "Repair history",
-                "CREATE TABLE %s ("
-                     + "parent_id timeuuid,"
-                     + "keyspace_name text,"
-                     + "columnfamily_names set<text>,"
-                     + "started_at timestamp,"
-                     + "finished_at timestamp,"
-                     + "exception_message text,"
-                     + "exception_stacktrace text,"
-                     + "requested_ranges set<text>,"
-                     + "successful_ranges set<text>,"
-                     + "options map<text, text>,"
-                     + "PRIMARY KEY (parent_id))")
-        .defaultTimeToLive((int) TimeUnit.DAYS.toSeconds(30))
-        .compaction(CompactionParams.twcs(ImmutableMap.of("compaction_window_unit","DAYS",
-                                                          "compaction_window_size","1")))
-        .build();
+    private final TableMetadata ParentRepairHistory;
 
-    private static final TableMetadata ViewBuildStatus =
-        parse(VIEW_BUILD_STATUS,
-            "Materialized View build status",
-            "CREATE TABLE %s ("
-                     + "keyspace_name text,"
-                     + "view_name text,"
-                     + "host_id uuid,"
-                     + "status text,"
-                     + "PRIMARY KEY ((keyspace_name, view_name), host_id))").build();
+    private final TableMetadata ViewBuildStatus;
 
-    private static TableMetadata.Builder parse(String table, String description, String cql)
+    public SystemDistributedKeyspace(KeyspaceMetadata ksm)
     {
-        return CreateTableStatement.parse(format(cql, table), SchemaConstants.DISTRIBUTED_KEYSPACE_NAME)
+        this.RepairHistory = parse(ksm, REPAIR_HISTORY,
+              "Repair history",
+              "CREATE TABLE %s ("
+              + "keyspace_name text,"
+              + "columnfamily_name text,"
+              + "id timeuuid,"
+              + "parent_id timeuuid,"
+              + "range_begin text,"
+              + "range_end text,"
+              + "coordinator inet,"
+              + "coordinator_port int,"
+              + "participants set<inet>,"
+              + "participants_v2 set<text>,"
+              + "exception_message text,"
+              + "exception_stacktrace text,"
+              + "status text,"
+              + "started_at timestamp,"
+              + "finished_at timestamp,"
+              + "PRIMARY KEY ((keyspace_name, columnfamily_name), id))")
+        .defaultTimeToLive((int) TimeUnit.DAYS.toSeconds(30))
+        .compaction(CompactionParams.twcs(ImmutableMap.of("compaction_window_unit","DAYS",
+                                                          "compaction_window_size","1")))
+        .build();
+
+        this.ParentRepairHistory = parse(ksm, PARENT_REPAIR_HISTORY,
+              "Repair history",
+              "CREATE TABLE %s ("
+              + "parent_id timeuuid,"
+              + "keyspace_name text,"
+              + "columnfamily_names set<text>,"
+              + "started_at timestamp,"
+              + "finished_at timestamp,"
+              + "exception_message text,"
+              + "exception_stacktrace text,"
+              + "requested_ranges set<text>,"
+              + "successful_ranges set<text>,"
+              + "options map<text, text>,"
+              + "PRIMARY KEY (parent_id))")
+        .defaultTimeToLive((int) TimeUnit.DAYS.toSeconds(30))
+        .compaction(CompactionParams.twcs(ImmutableMap.of("compaction_window_unit","DAYS",
+                                                          "compaction_window_size","1")))
+        .build();
+
+        this.ViewBuildStatus = parse(ksm, VIEW_BUILD_STATUS,
+              "Materialized View build status",
+              "CREATE TABLE %s ("
+              + "keyspace_name text,"
+              + "view_name text,"
+              + "host_id uuid,"
+              + "status text,"
+              + "PRIMARY KEY ((keyspace_name, view_name), host_id))").build();
+    }
+
+
+    private static TableMetadata.Builder parse(KeyspaceMetadata ksm, String table, String description, String cql)
+    {
+        return CreateTableStatement.parse(format(cql, table), ksm)
                                    .id(TableId.forSystemTable(SchemaConstants.DISTRIBUTED_KEYSPACE_NAME, table))
                                    .comment(description);
     }
 
     public static KeyspaceMetadata metadata()
     {
-        return KeyspaceMetadata.create(SchemaConstants.DISTRIBUTED_KEYSPACE_NAME, KeyspaceParams.simple(3), Tables.of(RepairHistory, ParentRepairHistory, ViewBuildStatus));
+        KeyspaceMetadata distributedKeyspaceMetadata = KeyspaceMetadata.create(SchemaConstants.DISTRIBUTED_KEYSPACE_NAME, KeyspaceParams.simple(3));
+        return distributedKeyspaceMetadata.withSwapped(new SystemDistributedKeyspace(distributedKeyspaceMetadata).tables());
+    }
+
+    public Tables tables()
+    {
+        return Tables.of(ViewBuildStatus, ParentRepairHistory, RepairHistory);
     }
 
     public static void startParentRepair(UUID parent_id, String keyspaceName, String[] cfnames, RepairOption options)
