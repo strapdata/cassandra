@@ -26,6 +26,8 @@ import java.nio.channels.WritableByteChannel;
 import org.apache.cassandra.utils.memory.MemoryUtil;
 
 import com.google.common.base.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for DataOutput implementations that does not have an optimized implementations of Plus methods
@@ -37,6 +39,8 @@ import com.google.common.base.Function;
  */
 public abstract class UnbufferedDataOutputStreamPlus extends DataOutputStreamPlus
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(UnbufferedDataOutputStreamPlus.class);
+
     private static final byte[] zeroBytes = new byte[2];
 
     protected UnbufferedDataOutputStreamPlus()
@@ -274,7 +278,10 @@ public abstract class UnbufferedDataOutputStreamPlus extends DataOutputStreamPlu
         }
 
         if (utfCount > 65535)
+        {
+            LOGGER.warn("Cannot write UTF string with length {} > 65535 bytes", utfCount);
             throw new UTFDataFormatException(); //$NON-NLS-1$
+        }
 
         byte[] utfBytes = retrieveTemporaryBuffer(utfCount + 2);
 

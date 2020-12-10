@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.gms;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,9 +39,13 @@ import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.service.StorageService;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class FailureDetectorTest
 {
+    public volatile VersionedValue.VersionedValueFactory valueFactory =
+    new VersionedValue.VersionedValueFactory(DatabaseDescriptor.getPartitioner());
+
     @BeforeClass
     public static void setup()
     {
@@ -85,5 +90,25 @@ public class FailureDetectorTest
         // confirm the FD's history for leftHost didn't get wiped by status jump to LEFT
         FailureDetector.instance.interpret(leftHost);
         assertFalse("Left endpoint not convicted", FailureDetector.instance.isAlive(leftHost));
+    }
+
+    @Test
+    public void testGZipCompression() throws Exception
+    {
+        final UUID hostId = UUID.randomUUID();
+        final String simpleTest = "SimpleTest";
+        final String rackId = "rack-1236";
+        InetAddressAndPort ep = InetAddressAndPort.getLoopbackAddress();
+
+        Gossiper.instance.initializeNodeUnsafe(ep, hostId, 1);
+        EndpointState initialRemoteState = Gossiper.instance.getEndpointStateForEndpoint(ep);
+        initialRemoteState.addApplicationState(ApplicationState.X7, valueFactory.compressedString(simpleTest));
+        initialRemoteState.addApplicationState(ApplicationState.RACK, valueFactory.rack(rackId));
+        initialRemoteState.addApplicationState(ApplicationState.HOST_ID, valueFactory.hostId(hostId));
+
+        final String allStates = ((FailureDetectorMBean) FailureDetector.instance).getAllEndpointStates();
+        assertTrue(allStates.contains(simpleTest));
+        assertTrue(allStates.contains(rackId));
+        assertTrue(allStates.contains(hostId.toString()));
     }
 }

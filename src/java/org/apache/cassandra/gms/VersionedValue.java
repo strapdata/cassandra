@@ -36,6 +36,8 @@ import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.utils.FBUtilities;
+import org.apache.cassandra.utils.GZipStringCompressor;
+
 import org.apache.commons.lang3.StringUtils;
 
 
@@ -134,7 +136,7 @@ public class VersionedValue implements Comparable<VersionedValue>
         {
             this.partitioner = partitioner;
         }
-        
+
         public VersionedValue cloneWithHigherVersion(VersionedValue value)
         {
             return new VersionedValue(value.value);
@@ -199,6 +201,17 @@ public class VersionedValue implements Comparable<VersionedValue>
         public VersionedValue hostId(UUID hostId)
         {
             return new VersionedValue(hostId.toString());
+        }
+
+        public VersionedValue compressedString(String value) {
+            try
+            {
+                return new VersionedValue(GZipStringCompressor.compress(value));
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException(e);
+            }
         }
 
         public VersionedValue tokens(Collection<Token> tokens)
