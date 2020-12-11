@@ -359,6 +359,13 @@ public class Mutation implements IMutation
          * @return the built mutation.
          */
         public Mutation build();
+
+        /**
+         * Check is the mutation is empty.
+         *
+         * @return true if the built mutation is empty.
+         */
+        public boolean isEmpty();
     }
 
     public static class MutationSerializer implements IVersionedSerializer<Mutation>
