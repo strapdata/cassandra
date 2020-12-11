@@ -491,17 +491,18 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
     @SuppressWarnings({ "unchecked" })
     private void buildIndexesBlocking(Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
     {
-        buildIndexesBlocking(1, sstables, indexes, isFullRebuild);
+        buildIndexesBlocking(1, sstables, indexes, isFullRebuild, true);
     }
 
-    private void buildIndexesBlocking(int indexThreads, Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
+    private void buildIndexesBlocking(int indexThreads, Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild, boolean markIndexesBuilding)
     {
         if (indexes.isEmpty())
             return;
 
         // Mark all indexes as building: this step must happen first, because if any index can't be marked, the whole
         // process needs to abort
-        markIndexesBuilding(indexes, isFullRebuild, false);
+        if (markIndexesBuilding)
+            markIndexesBuilding(indexes, isFullRebuild, false);
 
         // Build indexes in a try/catch, so that any index not marked as either built or failed will be marked as failed:
         final Set<Index> builtIndexes = Sets.newConcurrentHashSet();
@@ -547,7 +548,10 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
                                    @Override
                                    public void onSuccess(Object o)
                                    {
-                                       groupedIndexes.forEach(i -> markIndexBuilt(i, isFullRebuild));
+                                       groupedIndexes.forEach(i -> {
+                                                                  if (markIndexesBuilding)
+                                                                      markIndexBuilt(i, isFullRebuild);
+                                                              });
                                        logger.info("Index build of {} completed", getIndexNames(groupedIndexes));
                                        builtIndexes.addAll(groupedIndexes);
                                        build.set(o);
@@ -609,19 +613,98 @@ public class SecondaryIndexManager implements IndexRegistry, INotificationConsum
         }
     }
 
+    // For convenience, may be called directly from Index impls
+    public void buildIndexBlocking(Index index)
+    {
+        buildIndexBlocking(index, 1, true);
+    }
+
+    // For convenience, may be called directly from Index impls
+    public void buildIndexBlocking(Index index, boolean markIndexesBuilding)
+    {
+        buildIndexBlocking(index, 1, markIndexesBuilding);
+    }
+
     /**
      * For convenience, may be called directly from Index impls
      */
-    public void buildIndexBlocking(Index index)
+    public void buildIndexBlocking(Index index, int numThread, boolean markIndexesBuilding)
     {
         if (index.shouldBuildBlocking())
         {
             try (ColumnFamilyStore.RefViewFragment viewFragment = baseCfs.selectAndReference(View.selectFunction(SSTableSet.CANONICAL)))
             {
-                buildIndexesBlocking(viewFragment.sstables, Collections.singleton(index), true);
+                buildIndexesBlocking(numThread, viewFragment.sstables, Collections.singleton(index), true, markIndexesBuilding);
                 markIndexBuilt(index, true);
             }
         }
+    }
+
+    // Blocking build, for convenience, may be called directly from Index impls
+    public SettableFuture<?> buildIndex(Index index)
+    {
+        if (index.shouldBuildBlocking())
+        {
+            try (ColumnFamilyStore.RefViewFragment viewFragment = baseCfs.selectAndReference(View.selectFunction(SSTableSet.CANONICAL));
+                 Refs<SSTableReader> sstables = viewFragment.refs)
+            {
+                return buildIndex(1, sstables, index, true);
+            }
+        }
+        return null;
+    }
+
+    private SettableFuture<?> buildIndex(int indexThreads, Collection<SSTableReader> sstables, Index index, boolean isFullRebuild)
+    {
+        Set<Index> indexSingleton = Collections.singleton(index);
+        Index.IndexBuildingSupport buildingSupport = index.getBuildTaskSupport();
+        SecondaryIndexBuilder builder = buildingSupport.getIndexBuildTask(indexThreads, baseCfs, indexSingleton, sstables);
+        final SettableFuture build = SettableFuture.create();
+        Futures.addCallback(CompactionManager.instance.submitIndexBuild(builder), new FutureCallback()
+        {
+            @Override
+            public void onFailure(Throwable t)
+            {
+                logger.warn("Index build of " + getIndexNames(indexSingleton) + " failed:", t);
+                build.setException(t);
+            }
+
+            @Override
+            public void onSuccess(Object o)
+            {
+                logger.info("Index build of {} completed", getIndexNames(indexSingleton));
+                build.set(o);
+            }
+        }, MoreExecutors.directExecutor());
+        return build;
+    }
+
+    /**
+     * Non-blocking Index build on the compaction manager, for used by 2i implementations for defered index rebuild.
+     * @param index
+     * @return
+     */
+    public SettableFuture<?> buildIndexAsync(Index index)
+    {
+        markIndexesBuilding(ImmutableSet.of(index), true, false);
+        final SettableFuture initialization = SettableFuture.create();
+        Futures.addCallback(buildIndex(index), new FutureCallback()
+        {
+            @Override
+            public void onFailure(Throwable t)
+            {
+                logAndMarkIndexesFailed(Collections.singleton(index), t, false);
+                initialization.setException(t);
+            }
+
+            @Override
+            public void onSuccess(Object o)
+            {
+                markIndexBuilt(index, true);
+                initialization.set(o);
+            }
+        }, MoreExecutors.directExecutor());
+        return initialization;
     }
 
     private String getIndexNames(Set<Index> indexes)
