@@ -78,30 +78,33 @@ public final class FileUtils
 
     static
     {
-        try
+        if (Boolean.getBoolean("tests.maven") == false)
         {
-            clsDirectBuffer = Class.forName("sun.nio.ch.DirectBuffer");
-            Method mDirectBufferCleaner = clsDirectBuffer.getMethod("cleaner");
-            mhDirectBufferCleaner = MethodHandles.lookup().unreflect(mDirectBufferCleaner);
-            Method mCleanerClean = mDirectBufferCleaner.getReturnType().getMethod("clean");
-            mhCleanerClean = MethodHandles.lookup().unreflect(mCleanerClean);
+            try
+            {
+                clsDirectBuffer = Class.forName("sun.nio.ch.DirectBuffer");
+                Method mDirectBufferCleaner = clsDirectBuffer.getMethod("cleaner");
+                mhDirectBufferCleaner = MethodHandles.lookup().unreflect(mDirectBufferCleaner);
+                Method mCleanerClean = mDirectBufferCleaner.getReturnType().getMethod("clean");
+                mhCleanerClean = MethodHandles.lookup().unreflect(mCleanerClean);
 
-            ByteBuffer buf = ByteBuffer.allocateDirect(1);
-            clean(buf);
-        }
-        catch (IllegalAccessException e)
-        {
-            logger.error("FATAL: Cassandra is unable to access required classes. This usually means it has been " +
-                "run without the aid of the standard startup scripts or the scripts have been edited. If this was " +
-                "intentional, and you are attempting to use Java 11+ you may need to add the --add-exports and " +
-                "--add-opens jvm options from either jvm11-server.options or jvm11-client.options", e);
-            throw new RuntimeException(e);  // causes ExceptionInInitializerError, will prevent startup
-        }
-        catch (Throwable t)
-        {
-            logger.error("FATAL: Cannot initialize optimized memory deallocator.", t);
-            JVMStabilityInspector.inspectThrowable(t);
-            throw new RuntimeException(t); // causes ExceptionInInitializerError, will prevent startup
+                ByteBuffer buf = ByteBuffer.allocateDirect(1);
+                clean(buf);
+            }
+            catch (IllegalAccessException e)
+            {
+                logger.error("FATAL: Cassandra is unable to access required classes. This usually means it has been " +
+                             "run without the aid of the standard startup scripts or the scripts have been edited. If this was " +
+                             "intentional, and you are attempting to use Java 11+ you may need to add the --add-exports and " +
+                             "--add-opens jvm options from either jvm11-server.options or jvm11-client.options", e);
+                throw new RuntimeException(e);  // causes ExceptionInInitializerError, will prevent startup
+            }
+            catch (Throwable t)
+            {
+                logger.error("FATAL: Cannot initialize optimized memory deallocator.", t);
+                JVMStabilityInspector.inspectThrowable(t);
+                throw new RuntimeException(t); // causes ExceptionInInitializerError, will prevent startup
+            }
         }
     }
 
@@ -408,7 +411,7 @@ public final class FileUtils
 
     public static void clean(ByteBuffer buffer)
     {
-        if (buffer == null || !buffer.isDirect())
+        if (buffer == null || !buffer.isDirect() || Boolean.getBoolean("tests.maven"))
             return;
 
         // TODO Once we can get rid of Java 8, it's simpler to call sun.misc.Unsafe.invokeCleaner(ByteBuffer),

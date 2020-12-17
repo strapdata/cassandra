@@ -83,7 +83,7 @@ public final class Schema implements SchemaProvider
         KeyspaceMetadata systemKeyspaceMetadata = KeyspaceMetadata.create(SchemaConstants.SYSTEM_KEYSPACE_NAME, KeyspaceParams.local());
         this.systemKeyspace = new SystemKeyspace(systemKeyspaceMetadata);
 
-        if (DatabaseDescriptor.isDaemonInitialized() || DatabaseDescriptor.isToolInitialized())
+        if (DatabaseDescriptor.isDaemonInitialized() || DatabaseDescriptor.isToolInitialized() || Boolean.getBoolean("tests.maven"))
         {
             load(schemaKeyspaceMetadata.withSwapped(this.schemaKeyspace.tables()));
             load(systemKeyspaceMetadata.withSwapped(this.systemKeyspace.tables()).withSwapped(this.systemKeyspace.functions()));
