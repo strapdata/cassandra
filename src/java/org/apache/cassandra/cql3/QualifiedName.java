@@ -41,6 +41,12 @@ public class QualifiedName
         this.name = name;
     }
 
+    public QualifiedName(String keyspace, String name, boolean keepCase)
+    {
+        this.keyspace = toInternalName(keyspace, keepCase);
+        this.name = toInternalName(name, keepCase);
+    }
+
     /**
      * Sets the keyspace.
      *
