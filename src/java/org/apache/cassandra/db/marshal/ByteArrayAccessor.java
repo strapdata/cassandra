@@ -68,6 +68,12 @@ public class ByteArrayAccessor implements ValueAccessor<byte[]>
     }
 
     @Override
+    public byte[] duplicate(byte[] value)
+    {
+        return value;
+    }
+
+    @Override
     public <V2> int copyTo(byte[] src, int srcOffset, V2 dst, ValueAccessor<V2> dstAccessor, int dstOffset, int size)
     {
         dstAccessor.copyByteArrayTo(src, srcOffset, dst, dstOffset, size);

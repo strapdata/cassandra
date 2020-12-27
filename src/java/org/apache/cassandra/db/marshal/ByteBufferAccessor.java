@@ -67,6 +67,12 @@ public class ByteBufferAccessor implements ValueAccessor<ByteBuffer>
     }
 
     @Override
+    public ByteBuffer duplicate(ByteBuffer value)
+    {
+        return value.duplicate();
+    }
+
+    @Override
     public <V2> int copyTo(ByteBuffer src, int srcOffset, V2 dst, ValueAccessor<V2> dstAccessor, int dstOffset, int size)
     {
         dstAccessor.copyByteBufferTo(src, srcOffset, dst, dstOffset, size);

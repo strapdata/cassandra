@@ -178,6 +178,12 @@ public interface ValueAccessor<V>
     <V2> int copyTo(V src, int srcOffset, V2 dst, ValueAccessor<V2> dstAccessor, int dstOffset, int size);
 
     /**
+     * Creates a new byte buffer that shares this buffer's content.
+     * @return The new byte buffer
+     */
+    V duplicate(V value);
+
+    /**
      * copies a byte array into this accessors value.
      */
     int copyByteArrayTo(byte[] src, int srcOffset, V dst, int dstOffset, int size);
