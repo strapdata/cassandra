@@ -1504,13 +1504,8 @@ public class DatabaseDescriptor
 
     public static UUID getReplaceNode()
     {
-        try
-        {
-            return UUID.fromString(System.getProperty(Config.PROPERTY_PREFIX + "replace_node", null));
-        } catch (NullPointerException e)
-        {
-            return null;
-        }
+        String replaceUUID = System.getProperty(Config.PROPERTY_PREFIX + "replace_node", null);
+        return (replaceUUID == null) ? null : UUID.fromString(replaceUUID);
     }
 
     public static String getClusterName()
@@ -2964,7 +2959,7 @@ public class DatabaseDescriptor
         if (value > getConcurrentCompactors())
             logger.warn("max_concurrent_automatic_sstable_upgrades ({}) is larger than concurrent_compactors ({})", value, getConcurrentCompactors());
     }
-    
+
     public static AuditLogOptions getAuditLoggingOptions()
     {
         return conf.audit_logging_options;

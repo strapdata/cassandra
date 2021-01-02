@@ -657,9 +657,10 @@ public class Config
             try
             {
                 // Field.get() can throw NPE if the value of the field is null
-                value = field.get(config).toString();
+                Object v = field.get(config);
+                value = (v == null) ? "null" : v.toString();
             }
-            catch (NullPointerException | IllegalAccessException npe)
+            catch (IllegalAccessException npe)
             {
                 value = "null";
             }
