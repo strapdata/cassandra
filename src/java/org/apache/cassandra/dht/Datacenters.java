@@ -57,6 +57,12 @@ public class Datacenters
         {
             validDataCenters.add(snitch.getDatacenter(peer));
         }
+        // Fetch additional non-exiting DCs from the system property cassandra.datacenters, or env variable CASSANDRA_DATACENTERS
+        String datacenters = System.getProperty("cassandra.datacenters", System.getenv("CASSANDRA_DATACENTERS"));
+        if (datacenters != null) {
+            for(String datacenter : datacenters.split("[ ,]+"))
+                validDataCenters.add(datacenter);
+        }
 
         return validDataCenters;
     }
