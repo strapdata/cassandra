@@ -14,7 +14,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project basedir="." default="jar" name="apache-cassandra"
+<project basedir="." default="jar" name="strapdata-cassandra"
          xmlns:artifact="antlib:org.apache.maven.artifact.ant"
          xmlns:if="ant:if"
          xmlns:unless="ant:unless">
@@ -24,10 +24,10 @@
     <property name="debuglevel" value="source,lines,vars"/>
 
     <!-- default version and SCM information -->
-    <property name="base.version" value="3.11.12"/>
-    <property name="scm.connection" value="scm:https://gitbox.apache.org/repos/asf/cassandra.git"/>
-    <property name="scm.developerConnection" value="scm:https://gitbox.apache.org/repos/asf/cassandra.git"/>
-    <property name="scm.url" value="https://gitbox.apache.org/repos/asf?p=cassandra.git;a=tree"/>
+    <property name="base.version" value="3.11.12.1"/>
+    <property name="scm.connection" value="scm:git:https://github.com/strapdata/cassandra.git"/>
+    <property name="scm.developerConnection" value="scm:git:git@github.com:strapdata/cassandra.git"/>
+    <property name="scm.url" value="https://github.com/strapdata/cassandra"/>
 
     <!-- directory details -->
     <property name="basedir" value="."/>
@@ -309,14 +309,14 @@
             description="Define dependencies and dependency versions">
       <!-- The parent pom defines the versions of all dependencies -->
       <artifact:pom id="parent-pom"
-                    groupId="org.apache.cassandra"
+                    groupId="com.strapdata.cassandra"
                     artifactId="cassandra-parent"
                     packaging="pom"
                     version="${version}"
-                    url="https://cassandra.apache.org"
-                    name="Apache Cassandra"
+                    url="https://github.com/strapdata/cassandra"
+                    name="Strapdata Cassandra"
                     inceptionYear="2009"
-                    description="The Apache Cassandra Project develops a highly scalable second-generation distributed database, bringing together Dynamo's fully distributed design and Bigtable's ColumnFamily-based data model.">
+                    description="A fork of the Apache Cassandra Project ready to embed Elasticsearch.">
 
         <!-- Inherit from the ASF template pom file, ref http://maven.apache.org/pom/asf/ -->
         <parent groupId="org.apache" artifactId="apache" version="22"/>
@@ -509,7 +509,7 @@
       <!-- each dependency set then defines the subset of the dependencies for that dependency set -->
       <artifact:pom id="build-deps-pom"
                     artifactId="cassandra-build-deps">
-        <parent groupId="org.apache.cassandra"
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"
                 relativePath="${final.name}-parent.pom"/>
@@ -543,9 +543,9 @@
 
       <artifact:pom id="all-pom"
                     artifactId="cassandra-all"
-                    url="https://cassandra.apache.org"
-                    name="Apache Cassandra">
-        <parent groupId="org.apache.cassandra"
+                    url="http://github.com/strapdata/cassandra"
+                    name="Strapdata Cassandra">
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"
                 relativePath="${final.name}-parent.pom"/>
@@ -629,8 +629,8 @@
       <artifact:pom id="thrift-pom"
                     artifactId="cassandra-thrift"
                     url="https://cassandra.apache.org"
-                    name="Apache Cassandra">
-        <parent groupId="org.apache.cassandra"
+                    name="Strapdata Cassandra">
+        <parent groupId="com.strapdata.cassandra"
                 artifactId="cassandra-parent"
                 version="${version}"
                 relativePath="${final.name}-parent.pom"/>
@@ -642,6 +642,16 @@
         <dependency groupId="org.apache.thrift" artifactId="libthrift"/>
         <dependency groupId="com.carrotsearch" artifactId="hppc"/>
         <dependency groupId="com.github.rholder" artifactId="snowball-stemmer" version="1.3.0.581.1" />
+      </artifact:pom>
+      <artifact:pom id="dist-pom"
+                    artifactId="strapdata-cassandra"
+                    packaging="pom"
+                    url="http://github.com/strapdata/cassandra"
+                    name="Strapdata Cassandra">
+        <parent groupId="com.strapdata.cassandra"
+                artifactId="cassandra-parent"
+                version="${version}"/>
+        <scm connection="${scm.connection}" developerConnection="${scm.developerConnection}" url="${scm.url}"/>
       </artifact:pom>
     </target>
 
@@ -882,7 +892,7 @@
       <mkdir dir="${stress.build.classes}" />
       <manifest file="${stress.manifest}">
         <attribute name="Built-By" value="Pavel Yaskevich"/>
-        <attribute name="Main-Class" value="org.apache.cassandra.stress.Stress"/>
+        <attribute name="Main-Class" value="com.strapdata.cassandra.stress.Stress"/>
       </manifest>
       <mkdir dir="${stress.build.classes}/META-INF" />
       <mkdir dir="${build.dir}/tools/lib/" />
